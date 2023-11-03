@@ -35,7 +35,28 @@ the loop.
 # System Architecture
 A simplified architecture will be built for the MVP, roughly shown in the diagram below.
 
-![System Architecture](http://https://github.com/venture-23/localcoin/tree/main/../../../../../../../contracts/system_architecture_localcoin.png)
+<img width="647" alt="system_architecture_localcoin" src="https://github.com/venture-23/localcoin/assets/60603625/eae041e2-fa09-48bd-96a1-df50b6f5ff0f">
+
+* Campaign Creation(1):
+System owner initiates the creation of a new campaign with specified details. The campaign details include the total amount in stablecoin (e.g. 2,000 USDC) and campaign parameters. 
+A smart contract, following the Soroban token standard, is deployed on Soroban, if required. The contract mints tokens in an amount equivalent to the stablecoin on deposit (e.g. 2,000 tokens). 
+
+* Token Distribution(2-4): 
+Recipients of the campaign are identified and given access to a mobile app or platform. The campaign owner transfers a specific number of tokens (e.g. 2,000 tokens / number of recipients) to each recipient's wallet within the system using the Mobile App. Recipients can use their mobile app to view their token balance. To make a purchase, they visit an authorized merchant. 
+
+* Merchant Interaction(5): 
+Merchants have the mobile app integrated with the stellar blockchain platform. Recipients scan a QR code provided by the Merchant and transfer the tokens to the Merchant account. The Merchant, in turn, releases the purchased items to the recipients.
+
+* Fiat Exchange(6): 
+After completing the transaction, the merchant can request the campaign owner to exchange their earned tokens for an equivalent amount of fiat currency (e.g., USD). The merchant request sends the tokens to an escrow contract. The campaign owner initiates an exchange by sending the requested amount of stablecoin tokens from the campaign management contract for conversion and deposit into the merchant's bank account. The token is then burned from the escrow contract once the currency is exchanged. For the MVP the exchange to fiat will take place with the merchant in person, and the tokens will be sent to a burn address on the campaign management contract when the merchant makes their redemption request.
+
+* Mobile dApps:
+The stellar wallet is integrated on this app and it handles every transaction for the owner/campaign creator, Merchant or Recipients.
+
+
+
+
+
 
 
 
