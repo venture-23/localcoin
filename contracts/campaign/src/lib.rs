@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Env, String, Address, Symbol, Val};
+use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Env, String, Address, Symbol};
 
 #[contract]
 pub struct Campaign;
@@ -18,7 +18,7 @@ const CAMP_INFO: Symbol = symbol_short!("CAMP_INFO");
 #[contractimpl]
 impl Campaign {
 
-    pub fn set_campaign_info(e: Env, name:String, description:String, number_of_participants:Val, creator: Address){
+    pub fn set_campaign_info(e: Env, name:String, description:String, no_of_recipients:u32, creator: Address){
         let campaign_info = CampaignInfo{
             name,
             description,
