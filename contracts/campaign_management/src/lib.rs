@@ -9,10 +9,10 @@ mod contract {
 }
 
 #[contract]
-pub struct Issuance;
+pub struct CampaignManagement;
 
 #[contractimpl]
-impl Issuance {
+impl CampaignManagement {
 
     pub fn deploy(env:Env, name:String, description:String, no_of_recipients:u32,
          creator: Address, function: Symbol) -> Address {
