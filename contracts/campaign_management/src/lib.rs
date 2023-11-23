@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, Address, BytesN, Env, String, Vec, vec, Val};
+use soroban_sdk::{contract, contractimpl, contracttype, token, Address, BytesN, Env, String, Vec, Val, vec};
 
 mod campaign_contract {
     soroban_sdk::contractimport!(
@@ -34,8 +34,10 @@ pub struct CampaignDetail {
 #[contracttype]
 pub enum DataKeys {
     UserRegistry,
+    StableCoin,
     Campaigns,
-    CampaignInfo(Address)
+    SaltCounter,
+    CreatorCampaigns(Address)
 }
 
 #[contract]
@@ -60,29 +62,49 @@ impl CampaignManagement {
         env.storage().instance().set(&key, &address)
     }
 
+    pub fn set_stable_coin_address(env:Env, address:Address) {
+        let super_admin = Self::get_super_admin(env.clone());
+        super_admin.require_auth();
+        
+        let key = DataKeys::StableCoin;
+        env.storage().instance().set(&key, &address)
+    }
+
     pub fn create_campaign(env:Env, name:String, description:String, no_of_recipients:u32,
          token_address:Address, amount:i128, creator: Address) {
 
             creator.require_auth();
+
+            // transfer stable coin to campaign management from 'creator' address
+            let stable_coin_addr = Self::get_stable_coin(env.clone());
+            let stable_coin_client = token::Client::new(&env, &stable_coin_addr);
+            stable_coin_client.transfer(&creator, &env.current_contract_address(), &amount);
             
             let wasm_hash = env.deployer().upload_contract_wasm(campaign_contract::WASM);
-            let salt = BytesN::from_array(&env, &[0; 32]);
+
+            // dynamic salt count to deploy multiple contracts
+            let salt_key = DataKeys::SaltCounter;
+            let salt_count: u32 = env.storage().instance().get::<DataKeys, u32>(&salt_key).unwrap_or(0);
+            let salt = BytesN::from_array(&env, &[salt_count.try_into().unwrap(); 32]);
 
             // deploy campaign contract
-            let campaign_contract_addr = env.deployer().with_address(creator, salt).deploy(wasm_hash);
+            let campaign_contract_addr = env.deployer().with_address(creator.clone(), salt).deploy(wasm_hash);
+
+            // increase salt counter 
+            env.storage().instance().set(&salt_key, &(salt_count + 1));
 
             // call set_campaign_info on camapign contract through client
             let campaign_client = campaign_contract::Client::new(&env, &campaign_contract_addr);
             campaign_client.set_campaign_info(&name, &description, &no_of_recipients, &token_address, &creator); 
 
-            // call mint function on token contract througn client
+            // mint stable coin equivalent tokens to campaign contract
             let token_client = localcoin::Client::new(&env, &token_address);
             token_client.mint(&campaign_contract_addr, &amount);
 
             // set campaign admin in user_registry contract
             let user_registry_addr = Self::get_user_registry(env.clone());
             let user_registry_client = user_registry::Client::new(&env, &user_registry_addr);
-            user_registry_client.set_campaign_admin(&campaign_contract_addr, &creator);
+            user_registry_client.set_campaign_admin(&env.current_contract_address(), &campaign_contract_addr, &creator);
             
             // store all campaign
             let campaign_key = DataKeys::Campaigns;
@@ -90,9 +112,9 @@ impl CampaignManagement {
             campaign_list.push_back(campaign_contract_addr.clone());
             env.storage().instance().set(&campaign_key, &campaign_list);
 
-            // store campaign info of the creator
-            let key = DataKeys:: CampaignInfo(creator.clone());
-            let mut creator_campaigns = Self::get_campaigns_info(env.clone(), creator);
+            // store campaigns info of the creator
+            let key = DataKeys:: CreatorCampaigns(creator.clone());
+            let mut creator_campaigns = Self::get_creator_campaigns(env.clone(), creator);
 
             let mut new_campaign_info: Vec<Val> = Vec::new(&env);
             new_campaign_info.push_back(name.to_val());
@@ -109,61 +131,32 @@ impl CampaignManagement {
             env.storage().instance().set(&key, &creator_campaigns)
     }
 
-    pub fn request_campaign_settelment(env:Env, from:Address, amount:i128, token_address:Address, camapign_id:Address) {
-        
+    pub fn request_campaign_settelment(env:Env, from:Address, amount:i128, token_address:Address) {
+        // transaction should be sent from 'from' addesss
         from.require_auth();
 
         let user_registry = Self::get_user_registry(env.clone());
-        let merchants = user_registry::Client::new(&env, &user_registry).get_merchants();
+        let merchants = user_registry::Client::new(&env, &user_registry).get_verified_merchants();
 
         if !merchants.contains(&from) {
             panic!("Caller not merchant.")
         }
 
-        // verify if 'campaign_id' existed in vector of campaigns
-        if !Self::get_campaigns(env.clone()).contains(camapign_id.clone()) {
-            panic!("Campaign doesn't exist.")
-        }
+        // TODO: verify token and associated merchant
+        // remove campaign id
 
-        // get owner and campaign info from campaign contract
-        let campaign_client = campaign_contract::Client::new(&env, &camapign_id);
-        let owner = campaign_client.get_owner();
-        let _info = campaign_client.get_campaign_info(&camapign_id);
-
-        // get all the available campaign of owner
-        let owner_campaigns = Self::get_campaigns_info(env.clone(), owner);
-
-        // requested campaign for settelment
-        let req_campaign_detail = CampaignDetail {
-            campaign:camapign_id, 
-            token:token_address.clone(),
-            token_minted:amount,
-            info:_info
-        }
-        
-        // verify if the requested 'campaign_id' for settelment exists in users campaigns vector
-        if !owner_campaigns.contains(req_campaign_detail) {
-            panic!("Wrong campaign details.");
-        }
+        // this above TODO is not needed because the merchant will only receive the token associated to them
+        // this is checked while the recipient transfers token to merchant
 
         let token_client = localcoin::Client::new(&env, &token_address);
-        let current_contract = env.current_contract_address();
-
-        // campaign management contract balance before receiving token
-        let prev_balance = token_client.balance_of(&current_contract);
-
-        // merchant 'from' transfer's tokens to campaign_management contract
-        token_client.transfer(&from, &current_contract, &amount);
-
-        // verify token received
-        let current_balance = token_client.balance_of(&current_contract);
-        if !current_balance == prev_balance + amount {
-            panic!("Token not received.")
+        // verify balance of merchant
+        let balance = token_client.balance_of(&from);
+        if !balance >= amount {
+            panic!("Insufficient token for settelment.")
         }
 
-        // TODO: how to burn token , this fails
-        // campaign_management then burns the recieved token
-        token_client.burn(&current_contract, &amount);
+        // campaign_management burns the token from merchant 'from'
+        token_client.burn(&from, &amount);
 
         // TODO: transfer stable coin to super admin
     }
@@ -177,8 +170,8 @@ impl CampaignManagement {
         }
     }
 
-    pub fn get_campaigns_info(env:Env, creator:Address) -> Vec<CampaignDetail> {
-        let key = DataKeys:: CampaignInfo(creator);
+    pub fn get_creator_campaigns(env:Env, creator:Address) -> Vec<CampaignDetail> {
+        let key = DataKeys:: CreatorCampaigns(creator);
         if let Some(campaigns_info) = env.storage().instance().get::<DataKeys, Vec<CampaignDetail>>(&key) {
             campaigns_info
         } else {
@@ -190,6 +183,15 @@ impl CampaignManagement {
         let key = DataKeys::UserRegistry;
         if let Some(user_registry_addr) = env.storage().instance().get::<DataKeys, Address>(&key) {
             user_registry_addr
+        } else {
+            panic!("Address not set.")
+        }
+    }
+
+    pub fn get_stable_coin(env:Env) -> Address {
+        let key = DataKeys::StableCoin;
+        if let Some(stable_coin_addr) = env.storage().instance().get::<DataKeys, Address>(&key) {
+            stable_coin_addr
         } else {
             panic!("Address not set.")
         }
