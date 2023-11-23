@@ -16,3 +16,18 @@ pub fn write_administrator(e: &Env, id: &Address) {
     let key = DataKey::Admin;
     e.storage().instance().set(&key, id);
 }
+
+pub fn write_issuance(e: &Env, id: &Address) {
+    let key = DataKey::IssuanceManagement;
+    e.storage().instance().set(&key, id);
+}
+
+pub fn read_issuance(e: &Env) -> Address {
+    let key = DataKey::IssuanceManagement;
+    e.storage().instance().get(&key).unwrap()
+}
+
+pub fn has_issuance(e: &Env) -> bool {
+    let key = DataKey::IssuanceManagement;
+    e.storage().instance().has(&key)
+}

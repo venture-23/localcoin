@@ -13,5 +13,8 @@ pub enum DataKey {
     Balance(Address),
     Nonce(Address),
     State(Address),
-    Admin,
+    TotalSupply,
+    TokenBurned,
+    IssuanceManagement,
+    Admin
 }
