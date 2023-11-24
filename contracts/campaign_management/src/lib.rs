@@ -46,12 +46,12 @@ pub struct CampaignManagement;
 #[contractimpl]
 impl CampaignManagement {
     // initialize contract
-    pub fn initialize(env:Env, address:Address) {
+    pub fn initialize(env:Env, user_registey:Address) {
         if Self::has_user_registry(env.clone()) {
             panic!("Contract already initialized.")
         }
         let key = DataKeys::UserRegistry;
-        env.storage().instance().set(&key, &address)
+        env.storage().instance().set(&key, &user_registey)
     }
 
     pub fn set_user_registry(env:Env, address:Address) {
@@ -74,6 +74,14 @@ impl CampaignManagement {
          token_address:Address, amount:i128, creator: Address) {
 
             creator.require_auth();
+
+            let user_registry_addr = Self::get_user_registry(env.clone());
+            let user_registry_client = user_registry::Client::new(&env, &user_registry_addr);
+
+            let valid_tokens = user_registry_client.get_available_tokens();
+            if !valid_tokens.contains(token_address.clone()) {
+                panic!("Invalid token passed in param.")
+            }
 
             // transfer stable coin to campaign management from 'creator' address
             let stable_coin_addr = Self::get_stable_coin(env.clone());
@@ -102,9 +110,7 @@ impl CampaignManagement {
             token_client.mint(&campaign_contract_addr, &amount);
 
             // set campaign admin in user_registry contract
-            let user_registry_addr = Self::get_user_registry(env.clone());
-            let user_registry_client = user_registry::Client::new(&env, &user_registry_addr);
-            user_registry_client.set_campaign_admin(&env.current_contract_address(), &campaign_contract_addr, &creator);
+            user_registry_client.set_campaign_admin(&campaign_contract_addr, &creator);
             
             // store all campaign
             let campaign_key = DataKeys::Campaigns;
@@ -136,17 +142,17 @@ impl CampaignManagement {
         from.require_auth();
 
         let user_registry = Self::get_user_registry(env.clone());
-        let merchants = user_registry::Client::new(&env, &user_registry).get_verified_merchants();
+        let user_registry_client = user_registry::Client::new(&env, &user_registry);
 
+        let valid_tokens = user_registry_client.get_available_tokens();
+        if !valid_tokens.contains(token_address.clone()) {
+            panic!("Invalid token passed in param.")
+        }
+
+        let merchants = user_registry_client.get_verified_merchants();
         if !merchants.contains(&from) {
             panic!("Caller not merchant.")
         }
-
-        // TODO: verify token and associated merchant
-        // remove campaign id
-
-        // this above TODO is not needed because the merchant will only receive the token associated to them
-        // this is checked while the recipient transfers token to merchant
 
         let token_client = localcoin::Client::new(&env, &token_address);
         // verify balance of merchant
@@ -158,7 +164,11 @@ impl CampaignManagement {
         // campaign_management burns the token from merchant 'from'
         token_client.burn(&from, &amount);
 
-        // TODO: transfer stable coin to super admin
+        // transfer stable coin to super admin from campaign management address (current contract)
+        let stable_coin_addr = Self::get_stable_coin(env.clone());
+        let super_admin = Self::get_super_admin(env.clone());
+        let stable_coin_client = token::Client::new(&env, &stable_coin_addr);
+        stable_coin_client.transfer(&env.current_contract_address(), &super_admin, &amount);
     }
 
     pub fn get_campaigns(env:Env) -> Vec<Address> {
@@ -210,30 +220,53 @@ impl CampaignManagement {
 }
 
 // soroban contract deploy \
-//   --wasm target/wasm32-unknown-unknown/release/campaign_management.wasm \
+//   --wasm target/wasm32-unknown-unknown/release/user_registry.wasm \
 //   --source alice \
 //   --network testnet
 
 //   soroban contract invoke \
-//   --id CATDHGFYOJESWUTXKVTU6OLH6SEHVNTY4DZWZ5FJLURO62GIAPBNARMT \
+//   --id CDEXXZ7GUOFKYOA7VKA7S4LO23EHIBRSDCRAAJCDCOPLL7CVTDS5SI7E \
 //   --source alice \
 //   --network testnet \
 //   -- \
-//   create_campaign \
-//   --name "Hello 2" \
-//   --description "How u doin" \
-//   --no_of_recipients 3 \
-//   --token_address CDOYR5LVRTZZABLXIOG6WQV7Z63UIABS6AHM3QZHZPSTJR5F4F4G3FO2 \
-//   --amount 10000 \
-//   --creator GB6A2R4B7MSB7HDD56DC4KIUCML3QGF2IT4JLTFHJNMHGGCJOVS3TELN
+//   issue_new_token \
+//   --items '["food"]' \
+//   --merchants '["GB5JVYGERUEATTCBA4PTOC7CKINQPBBROFU75SZ5CFG6UDC5Y3MKNP2D"]'
+
+
+// soroban contract invoke \
+//  --id CC5OZSMIKXJHBUI2PDM55N7TLCJRHDNXMS27GYZLAW7UKB5QRXYK6DU5 \
+//  --source bob \
+//  --network testnet \
+//  -- \
+//  create_campaign \
+//  --name "Donate Medicine" \
+//  --description "I want to donate medicine" \
+//  --no_of_recipients 1 \
+//  --token_address CB7LGIQUPE26SXIE4XNAWLBTYB46VXQBUN4MG6LH24NED3DCPL3XGA6E \
+//  --amount 10 \
+//  --creator bob
 
 //   localcoin addr - CA6NUSK2W5GR5PAGGLOUUYZ7E67DQJTZFRDZRXY4TS3AF3ZZYTUMTN3T
   
 //   soroban contract invoke \
-//   --id CDOYR5LVRTZZABLXIOG6WQV7Z63UIABS6AHM3QZHZPSTJR5F4F4G3FO2 \
+//   --id CDZMT6TRDSE4WS3DLJSUEKEUAPXHBXDTGAUW4AICR2LG2QW5O4ASZMYV \
+//   --source jack \
+//   --network testnet \
+//   -- \
+//   merchant_registration \
+//   --merchant_wallet carol \
+//   --proprietor "carol" \
+//   --phone_no "+977-94488888888" \
+//   --store_name "cbs4atore" \
+//   --location "ccc"
+  
+//   soroban contract invoke \
+//   --id CDZMT6TRDSE4WS3DLJSUEKEUAPXHBXDTGAUW4AICR2LG2QW5O4ASZMYV \
 //   --source alice \
 //   --network testnet \
 //   -- \
-//   balance_of \
-//   --id CDH4PTQRZPXB4YZLFUB3K4N5RG2BUUPBQ723CKXZMMJHTJEYK6HW4GFE 
-  
+//   set_campaign_admin \
+//   --campaign_management bob \
+//   --campaign alice\
+//   --admin bob
