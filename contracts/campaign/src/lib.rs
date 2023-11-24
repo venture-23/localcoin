@@ -14,7 +14,7 @@ pub struct Campaign;
 #[derive(Clone)]
 #[contracttype]
 pub enum DataKeys{
-    Admin,
+    Owner,
     TokenAddress,
     CampaignInfo(Address)
 }
@@ -28,7 +28,7 @@ impl Campaign {
         if Self::has_administrator(env.clone()) {
             panic!("Campaign info already set.")
         }
-        let owner_key = DataKeys::Admin;
+        let owner_key = DataKeys::Owner;
         env.storage().instance().set(&owner_key, &creator);
 
         let token_key = DataKeys::TokenAddress;
@@ -58,16 +58,16 @@ impl Campaign {
     }
 
     pub fn has_administrator(env:Env) -> bool {
-        let key = DataKeys::Admin;
+        let key = DataKeys::Owner;
         env.storage().instance().has(&key)
     }
 
     pub fn get_owner(env:Env) ->Address {
-        let key = DataKeys::Admin;
+        let key = DataKeys::Owner;
         if let Some(owner) = env.storage().instance().get::<DataKeys, Address>(&key) {
             owner
         } else {
-            panic!("Admin address not set.");
+            panic!("Owner address not set.");
         }
     }
 
