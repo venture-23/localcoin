@@ -20,6 +20,7 @@ mod user_registry {
 pub enum DataKeys{
     UserRegistry,
     SaltCounter,
+    CampaignManagement,
     ItemsAssociated(Address),
     MerchantsAssociated(Address)
 }
@@ -46,14 +47,32 @@ impl IssuanceManagement {
         env.storage().instance().set(&key, &address)
     }
 
-    pub fn issue_new_token(env:Env, campaign_management:Address, decimal:u32, name:String, symbol:String, 
+    pub fn set_campaign_management(env:Env, address:Address) {
+        let super_admin = Self::get_super_admin(env.clone());
+        super_admin.require_auth();
+        
+        let key = DataKeys::CampaignManagement;
+        env.storage().instance().set(&key, &address)
+    }
+
+    pub fn issue_new_token(env:Env, decimal:u32, name:String, symbol:String, 
         items:Vec<String>, merchants:Vec<Address>) 
         {
             let super_admin = Self::get_super_admin(env.clone());
             super_admin.require_auth();
 
-            let wasm_hash = env.deployer().upload_contract_wasm(localcoin::WASM);
+            let campaign_management_addr = Self::get_campaign_management(env.clone());
+            let user_registry_addr = Self::get_user_registry(env.clone());
+            let user_registry_client = user_registry::Client::new(&env, &user_registry_addr);
 
+            let verified_merchants = user_registry_client.get_verified_merchants();
+            for merchant in merchants.iter() {
+                if !verified_merchants.contains(merchant) {
+                    panic!("Merchants list contains unverified merchant.")
+                }
+            }
+
+            let wasm_hash = env.deployer().upload_contract_wasm(localcoin::WASM);
             // dynamic salt count to deploy multiple token contracts
             let salt_key = DataKeys::SaltCounter;
             let salt_count: u32 = env.storage().instance().get::<DataKeys, u32>(&salt_key).unwrap_or(0);
@@ -67,7 +86,7 @@ impl IssuanceManagement {
             // set issuance management contract in deployed token 
             token_client.set_issuance_management(&current_contract);
             // initialize deployed token
-            token_client.initialize(&campaign_management, &decimal, &name, &symbol);
+            token_client.initialize(&campaign_management_addr, &decimal, &name, &symbol);
 
             // increase salt counter 
             env.storage().instance().set(&salt_key, &(salt_count + 1));
@@ -81,8 +100,6 @@ impl IssuanceManagement {
             env.storage().instance().set(&merchant_key, &merchants);
 
             //  send deployed tokens to user_registry contract
-            let user_registry_addr = Self::get_user_registry(env.clone());
-            let user_registry_client = user_registry::Client::new(&env, &user_registry_addr);
             user_registry_client.add_deployed_tokens(&deployed_token);
     }
 
@@ -97,6 +114,11 @@ impl IssuanceManagement {
         }
 
         let existig_items = Self::get_items_assocoated(env.clone(), token_address);
+        for item in items.iter() {
+            if existig_items.contains(item) {
+                panic!("Item provided already exist.")
+            }
+        }
         let updated_items_list = vec![&env, existig_items, items].concat();
         env.storage().instance().set(&key, &updated_items_list);
     }
@@ -112,6 +134,11 @@ impl IssuanceManagement {
         }
 
         let existig_merchants = Self::get_merchants_assocoated(env.clone(), token_address);
+        for merchant in merchants.iter() {
+            if existig_merchants.contains(merchant) {
+                panic!("Merchant provided already exist.")
+            }
+        }
         let updated_merchants_list = vec![&env, existig_merchants, merchants].concat();
         env.storage().instance().set(&key, &updated_merchants_list);
     }
@@ -137,6 +164,15 @@ impl IssuanceManagement {
         let key = DataKeys::UserRegistry;
         if let Some(user_registry_addr) = env.storage().instance().get::<DataKeys, Address>(&key) {
             user_registry_addr
+        } else {
+            panic!("Address not set.")
+        }
+    }
+
+    pub fn get_campaign_management(env:Env) -> Address {
+        let key = DataKeys::CampaignManagement;
+        if let Some(campaign_management_addr) = env.storage().instance().get::<DataKeys, Address>(&key) {
+            campaign_management_addr
         } else {
             panic!("Address not set.")
         }
