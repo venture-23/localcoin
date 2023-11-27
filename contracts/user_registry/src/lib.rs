@@ -51,9 +51,7 @@ impl UserRegisrty {
         env.storage().instance().set(&key, &new_super_admin)
     }
 
-    pub fn merchant_registration(env:Env, merchant_addr:Address, proprietor:String, phone_no:String, store_name:String, location:String) {
-        merchant_addr.require_auth();
-        
+    pub fn merchant_registration(env:Env, merchant_addr:Address, proprietor:String, phone_no:String, store_name:String, location:String) {        
         let key = DataKeys::MerchantsInfo(merchant_addr);
         if env.storage().instance().has(&key) {
             panic!("Registration request already sent.")
