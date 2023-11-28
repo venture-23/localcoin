@@ -1,6 +1,8 @@
 #![no_std]
 use soroban_sdk::{contract, contractimpl, contracttype, Address, String, Env, Vec, Val, Map, vec, map};
 
+mod test;
+
 #[contract]
 pub struct UserRegisrty;
 
