@@ -47,12 +47,12 @@ pub struct CampaignManagement;
 #[contractimpl]
 impl CampaignManagement {
     // initialize contract
-    pub fn initialize(env:Env, user_registey:Address) {
+    pub fn initialize(env:Env, user_registry:Address) {
         if Self::has_user_registry(env.clone()) {
             panic!("Contract already initialized.")
         }
         let key = DataKeys::UserRegistry;
-        env.storage().instance().set(&key, &user_registey)
+        env.storage().instance().set(&key, &user_registry)
     }
 
     pub fn set_user_registry(env:Env, address:Address) {
@@ -171,6 +171,12 @@ impl CampaignManagement {
         let stable_coin_addr = Self::get_stable_coin(env.clone());
         let super_admin = Self::get_super_admin(env.clone());
         let stable_coin_client = token::Client::new(&env, &stable_coin_addr);
+
+        let stable_coin_balance = stable_coin_client.balance(&from);
+        if !stable_coin_balance >= amount {
+            panic!("Insufficient stable coin in camapign management for settelment.")
+        }
+        // transfer stable coin to super admin
         stable_coin_client.transfer(&env.current_contract_address(), &super_admin, &amount);
         // emit event
         env.events().publish((from, amount, token_address), "Settelment requested.");
