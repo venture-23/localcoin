@@ -22,6 +22,7 @@ mod user_registry {
     );
 }
 
+#[derive(Clone)]
 #[contracttype]
 pub struct CampaignDetail {
     pub campaign: Address,
@@ -120,7 +121,7 @@ impl CampaignManagement {
 
             // store campaigns info of the creator
             let key = DataKeys:: CreatorCampaigns(creator.clone());
-            let mut creator_campaigns = Self::get_creator_campaigns(env.clone(), creator);
+            let mut creator_campaigns = Self::get_creator_campaigns(env.clone(), creator.clone());
 
             let mut new_campaign_info: Vec<Val> = Vec::new(&env);
             new_campaign_info.push_back(name.to_val());
@@ -133,8 +134,10 @@ impl CampaignManagement {
                 token_minted: amount,
                 info: new_campaign_info
             };
-            creator_campaigns.push_back(campaign_value);
-            env.storage().instance().set(&key, &creator_campaigns)
+            creator_campaigns.push_back(campaign_value.clone());
+            env.storage().instance().set(&key, &creator_campaigns);
+            // emit event
+            env.events().publish((creator, campaign_value), "Campaign created.");
     }
 
     pub fn request_campaign_settelment(env:Env, from:Address, amount:i128, token_address:Address) {
@@ -169,6 +172,8 @@ impl CampaignManagement {
         let super_admin = Self::get_super_admin(env.clone());
         let stable_coin_client = token::Client::new(&env, &stable_coin_addr);
         stable_coin_client.transfer(&env.current_contract_address(), &super_admin, &amount);
+        // emit event
+        env.events().publish((from, amount, token_address), "Settelment requested.");
     }
 
     pub fn get_campaigns(env:Env) -> Vec<Address> {
@@ -207,6 +212,13 @@ impl CampaignManagement {
         }
     }
 
+    pub fn get_balance_of_stable_coin(env:Env, user:Address) -> i128 {
+        let stable_coin_addr = Self::get_stable_coin(env.clone());
+        let stable_coin_client = token::Client::new(&env, &stable_coin_addr);
+        let balance = stable_coin_client.balance(&user);
+        balance
+    }
+    
     pub fn get_super_admin(env:Env) -> Address {
         let user_registry_addr = Self::get_user_registry(env.clone());
         let client = user_registry::Client::new(&env, &user_registry_addr);
@@ -262,11 +274,13 @@ impl CampaignManagement {
 //   --location "ccc"
   
 //   soroban contract invoke \
-//   --id CDZMT6TRDSE4WS3DLJSUEKEUAPXHBXDTGAUW4AICR2LG2QW5O4ASZMYV \
+//   --id CAMDZ6NP7HC6ZJ2FE2X4XPL4B4MZCLUBDH6OZW3VNF73A55J5QQEGO2Q \
 //   --source alice \
 //   --network testnet \
 //   -- \
-//   set_campaign_admin \
-//   --campaign_management bob \
-//   --campaign alice\
-//   --admin bob
+//   set_campaign_info \
+//   --name "hh" \
+//   --description "Hello there" \
+//   --no_of_recipients 1 \
+//   --token_address alice \
+//   --creator alice
