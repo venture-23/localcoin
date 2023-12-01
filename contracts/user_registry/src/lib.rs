@@ -54,7 +54,7 @@ impl UserRegisrty {
     }
 
     pub fn merchant_registration(env:Env, merchant_addr:Address, proprietor:String, phone_no:String, store_name:String, location:String) {        
-        let key = DataKeys::MerchantsInfo(merchant_addr);
+        let key = DataKeys::MerchantsInfo(merchant_addr.clone());
         if env.storage().instance().has(&key) {
             panic!("Registration request already sent.")
         }
@@ -67,7 +67,8 @@ impl UserRegisrty {
             (String::from_slice(&env, "store_name"), store_name.to_val()),
             (String::from_slice(&env, "location"), location.to_val())
             ];
-        env.storage().instance().set(&key, &merchant_info)
+        env.storage().instance().set(&key, &merchant_info);
+        env.events().publish((merchant_addr, merchant_info), "Verification request sent.");
     }
 
     pub fn verify_merchant(env:Env, merchant_addr:Address) {
@@ -88,8 +89,10 @@ impl UserRegisrty {
         // store a list of merchants
         let key = DataKeys::VerifiedMerchantList;
         let mut merchants_list = Self::get_verified_merchants(env.clone());
-        merchants_list.push_back(merchant_addr);
-        env.storage().instance().set(&key, &merchants_list)
+        merchants_list.push_back(merchant_addr.clone());
+        env.storage().instance().set(&key, &merchants_list);
+        
+        env.events().publish((merchant_addr, merchant_info), "Merchant verified.");
     }
 
     pub fn set_campaign_admin(env:Env, campaign:Address, admin:Address) {

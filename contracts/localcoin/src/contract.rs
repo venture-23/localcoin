@@ -132,7 +132,6 @@ impl LocalCoin {
     }
 
     pub fn burn(e: Env, from: Address, amount: i128) {
-        // from.require_auth();
         let admin = read_administrator(&e);
         admin.require_auth();
 

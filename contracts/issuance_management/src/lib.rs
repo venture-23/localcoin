@@ -101,6 +101,9 @@ impl IssuanceManagement {
 
             //  send deployed tokens to user_registry contract
             user_registry_client.add_deployed_tokens(&deployed_token);
+
+            // emit event
+            env.events().publish((deployed_token, (name, symbol, decimal), (items, merchants)), "New token issued.");
     }
 
     // adds new items for an existing token
@@ -113,14 +116,17 @@ impl IssuanceManagement {
             panic!("Token doesn't exist.")
         }
 
-        let existig_items = Self::get_items_assocoated(env.clone(), token_address);
+        let existig_items = Self::get_items_assocoated(env.clone(), token_address.clone());
         for item in items.iter() {
             if existig_items.contains(item) {
                 panic!("Item provided already exist.")
             }
         }
-        let updated_items_list = vec![&env, existig_items, items].concat();
+        let updated_items_list = vec![&env, existig_items, items.clone()].concat();
         env.storage().instance().set(&key, &updated_items_list);
+        // emit event
+        env.events().publish((token_address, items), "Token's items list updated.");
+
     }
 
     // adds new merchants for an existing token
@@ -133,14 +139,16 @@ impl IssuanceManagement {
             panic!("Token doesn't exist.")
         }
 
-        let existig_merchants = Self::get_merchants_assocoated(env.clone(), token_address);
+        let existig_merchants = Self::get_merchants_assocoated(env.clone(), token_address.clone());
         for merchant in merchants.iter() {
             if existig_merchants.contains(merchant) {
                 panic!("Merchant provided already exist.")
             }
         }
-        let updated_merchants_list = vec![&env, existig_merchants, merchants].concat();
+        let updated_merchants_list = vec![&env, existig_merchants, merchants.clone()].concat();
         env.storage().instance().set(&key, &updated_merchants_list);
+        // emit event
+        env.events().publish((token_address, merchants), "Token's merchants list updated.");
     }
 
     pub fn get_balance_of_batch(env:Env, user:Address) -> Map<String, i128> {
