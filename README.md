@@ -170,3 +170,6 @@ To transfer the funds from campaign creator to recipients, creator needs to call
     </br>from: Address of Merchant
     </br>token_address: Address of the token that is to be settled,
     </br>amount: amount to be settled
+
+* Mobile App Design
+https://www.figma.com/file/DuJv4E8Fx0y93HLiJ30734/LocalCoin-Test?type=design&node-id=0-1&mode=design&t=DBc7C1eMJf4PL375-0
