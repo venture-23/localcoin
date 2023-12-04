@@ -42,7 +42,9 @@ impl Campaign {
         // set campaign info
         let campaign_address = env.current_contract_address();
         let campaign_key = DataKeys:: CampaignInfo(campaign_address);
-        env.storage().instance().set(&campaign_key, &campaign_info)
+        env.storage().instance().set(&campaign_key, &campaign_info);
+        // emit event
+        env.events().publish((creator, campaign_info), "Campaign info set.");
     }
 
     // transfer token to recipient
@@ -55,6 +57,8 @@ impl Campaign {
 
         let token_client = localcoin::Client::new(&env, &token_addr);
         token_client.transfer(&current_contract_addr, &to, &amount);
+        // emit event
+        env.events().publish((current_contract_addr, to, amount), "Token transferred to recipient.");
     }
 
     pub fn has_administrator(env:Env) -> bool {
