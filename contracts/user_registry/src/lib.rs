@@ -29,7 +29,7 @@ impl UserRegisrty {
         env.storage().instance().set(&key, &super_admin)
     }
 
-    pub fn set_campaign_managment(env:Env, campaign_management:Address) {
+    pub fn set_campaign_management(env:Env, campaign_management:Address) {
         let super_admin = Self::get_super_admin(env.clone());
         super_admin.require_auth();
 
@@ -37,7 +37,7 @@ impl UserRegisrty {
         env.storage().instance().set(&key, &campaign_management)
     }
 
-    pub fn set_issuance_managment(env:Env, issuance_management:Address) {
+    pub fn set_issuance_management(env:Env, issuance_management:Address) {
         let super_admin = Self::get_super_admin(env.clone());
         super_admin.require_auth();
 
@@ -182,3 +182,15 @@ impl UserRegisrty {
     }
 }
 
+soroban contract deploy \
+  --wasm target/wasm32-unknown-unknown/release/user_registry.wasm \
+  --source alice \
+  --network testnet
+
+//   soroban contract invoke \
+//   --id CAPWEGXEOWLOMEJRDST4XDNAGUX6YNWXWASYV7B7QTKN34OKTWVOKYUU \
+//   --source alice \
+//   --network testnet \
+//   -- \
+//   set_user_registry \
+//   --address CBPF7IGIG5AUTRZK72JENZR2OLAWIMJPHJLHM2IA7IHT6RXZ6EAUZVG3
