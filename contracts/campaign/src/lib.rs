@@ -1,6 +1,8 @@
 #![no_std]
 use soroban_sdk::{contract, contractimpl, contracttype, Env, String, Address, Vec, vec, Val};
 
+mod test;
+
 mod localcoin {
     soroban_sdk::contractimport!(
         file =
@@ -16,7 +18,7 @@ pub struct Campaign;
 pub enum DataKeys{
     Owner,
     TokenAddress,
-    CampaignInfo(Address)
+    CampaignInfo
 }
 
 #[contractimpl]
@@ -40,8 +42,7 @@ impl Campaign {
         campaign_info.push_back(no_of_recipients.into());
 
         // set campaign info
-        let campaign_address = env.current_contract_address();
-        let campaign_key = DataKeys:: CampaignInfo(campaign_address);
+        let campaign_key = DataKeys:: CampaignInfo;
         env.storage().instance().set(&campaign_key, &campaign_info);
         // emit event
         env.events().publish((creator, campaign_info), "Campaign info set.");
@@ -84,8 +85,8 @@ impl Campaign {
         }
     }
 
-    pub fn get_campaign_info(env:Env, campaign:Address) -> Vec<Val> {
-        let key = DataKeys:: CampaignInfo(campaign);
+    pub fn get_campaign_info(env:Env) -> Vec<Val> {
+        let key = DataKeys:: CampaignInfo;
         if let Some(campaign_info) = env.storage().instance().get::<DataKeys, Vec<Val>>(&key) {
             campaign_info
         } else {
