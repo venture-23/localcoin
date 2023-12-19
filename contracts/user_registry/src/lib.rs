@@ -61,11 +61,11 @@ impl UserRegisrty {
 
         let merchant_info: Map<String, Val> = map![
             &env,
-            (String::from_slice(&env, "verified_status"), false.into()),
-            (String::from_slice(&env, "proprietor"), proprietor.to_val()),
-            (String::from_slice(&env, "phone_no"), phone_no.to_val()),
-            (String::from_slice(&env, "store_name"), store_name.to_val()),
-            (String::from_slice(&env, "location"), location.to_val())
+            (String::from_str(&env, "verified_status"), false.into()),
+            (String::from_str(&env, "proprietor"), proprietor.to_val()),
+            (String::from_str(&env, "phone_no"), phone_no.to_val()),
+            (String::from_str(&env, "store_name"), store_name.to_val()),
+            (String::from_str(&env, "location"), location.to_val())
             ];
         env.storage().instance().set(&key, &merchant_info);
         env.events().publish((merchant_addr, merchant_info), "Verification request sent.");
@@ -83,7 +83,7 @@ impl UserRegisrty {
 
         let mut merchant_info = Self::get_merchant_info(env.clone(), merchant_addr.clone());
         // update merchant status to true
-        merchant_info.set(String::from_slice(&env, "verified_status"), true.into());
+        merchant_info.set(String::from_str(&env, "verified_status"), true.into());
         env.storage().instance().set(&key, &merchant_info);
 
         // store a list of merchants
