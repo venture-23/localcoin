@@ -181,16 +181,3 @@ impl UserRegisrty {
         env.storage().instance().has(&key)
     }
 }
-
-soroban contract deploy \
-  --wasm target/wasm32-unknown-unknown/release/user_registry.wasm \
-  --source alice \
-  --network testnet
-
-//   soroban contract invoke \
-//   --id CAPWEGXEOWLOMEJRDST4XDNAGUX6YNWXWASYV7B7QTKN34OKTWVOKYUU \
-//   --source alice \
-//   --network testnet \
-//   -- \
-//   set_user_registry \
-//   --address CBPF7IGIG5AUTRZK72JENZR2OLAWIMJPHJLHM2IA7IHT6RXZ6EAUZVG3
