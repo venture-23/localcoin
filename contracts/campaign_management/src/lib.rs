@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, token, Address, BytesN, Env, String, Vec, Val, vec};
+use soroban_sdk::{contract, contractimpl, contracttype, token, Address, BytesN, Env, String, Vec, Val, Map, vec};
 
 mod campaign_contract {
     soroban_sdk::contractimport!(
@@ -38,7 +38,8 @@ pub enum DataKeys {
     StableCoin,
     Campaigns,
     SaltCounter,
-    CreatorCampaigns(Address)
+    CreatorCampaigns(Address),
+    CampaignsName
 }
 
 #[contract]
@@ -93,7 +94,7 @@ impl CampaignManagement {
 
             // dynamic salt count to deploy multiple contracts
             let salt_key = DataKeys::SaltCounter;
-            let salt_count: u32 = env.storage().instance().get::<DataKeys, u32>(&salt_key).unwrap_or(0);
+            let salt_count: u32 = env.storage().instance().get::<DataKeys, u32>(&salt_key).unwrap_or(15);
             let salt = BytesN::from_array(&env, &[salt_count.try_into().unwrap(); 32]);
 
             // deploy campaign contract
@@ -118,6 +119,12 @@ impl CampaignManagement {
             let mut campaign_list = Self::get_campaigns(env.clone());
             campaign_list.push_back(campaign_contract_addr.clone());
             env.storage().instance().set(&campaign_key, &campaign_list);
+
+            // store campaign name
+            let campaign_name_key = DataKeys::CampaignsName;
+            let mut campaign_dict = Self::get_campaigns_name(env.clone());
+            campaign_dict.set(campaign_contract_addr.clone(), name.clone());
+            env.storage().instance().set(&campaign_name_key, &campaign_dict);
 
             // store campaigns info of the creator
             let key = DataKeys:: CreatorCampaigns(creator.clone());
@@ -188,6 +195,15 @@ impl CampaignManagement {
             campaigns
         } else {
             vec![&env]
+        }
+    }
+
+    pub fn get_campaigns_name(env:Env) -> Map<Address, String> {
+        let key = DataKeys::CampaignsName;
+        if let Some(campaigns_name) = env.storage().instance().get::<DataKeys, Map<Address, String>>(&key) {
+            campaigns_name
+        } else {
+            Map::new(&env)
         }
     }
 
