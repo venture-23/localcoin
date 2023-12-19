@@ -1,5 +1,6 @@
 #![no_std]
 use soroban_sdk::{contract, contractimpl, contracttype, token, Address, BytesN, Env, String, Vec, Val, vec};
+mod test;
 
 mod campaign_contract {
     soroban_sdk::contractimport!(
@@ -159,7 +160,7 @@ impl CampaignManagement {
 
         let token_client = localcoin::Client::new(&env, &token_address);
         // verify balance of merchant
-        let balance = token_client.balance_of(&from);
+        let balance = token_client.balance(&from);
         if !balance >= amount {
             panic!("Insufficient token for settelment.")
         }
@@ -238,7 +239,7 @@ impl CampaignManagement {
 }
 
 // soroban contract deploy \
-//   --wasm target/wasm32-unknown-unknown/release/user_registry.wasm \
+//   --wasm target/wasm32-unknown-unknown/release/campaign_management.wasm \
 //   --source alice \
 //   --network testnet
 
@@ -278,15 +279,13 @@ impl CampaignManagement {
 //   --phone_no "+977-94488888888" \
 //   --store_name "cbs4atore" \
 //   --location "ccc"
-  
+
 //   soroban contract invoke \
-//   --id CAMDZ6NP7HC6ZJ2FE2X4XPL4B4MZCLUBDH6OZW3VNF73A55J5QQEGO2Q \
+//   --id CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA \
 //   --source alice \
 //   --network testnet \
 //   -- \
-//   set_campaign_info \
-//   --name "hh" \
-//   --description "Hello there" \
-//   --no_of_recipients 1 \
-//   --token_address alice \
-//   --creator alice
+//   balance \
+//   --id alice
+
+//   soroban lab token wrap --asset="USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5" --rpc-url https://soroban-testnet.stellar.org --network-passphrase 'Test SDF Network ; September 2015'
