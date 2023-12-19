@@ -1,5 +1,6 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, token, Address, BytesN, Env, String, Vec, Val, Map, vec};
+use soroban_sdk::{contract, contractimpl, contracttype, token, Address, BytesN, Env, String, Vec, Val, vec};
+mod test;
 
 mod campaign_contract {
     soroban_sdk::contractimport!(
@@ -166,7 +167,7 @@ impl CampaignManagement {
 
         let token_client = localcoin::Client::new(&env, &token_address);
         // verify balance of merchant
-        let balance = token_client.balance_of(&from);
+        let balance = token_client.balance(&from);
         if !balance >= amount {
             panic!("Insufficient token for settelment.")
         }
@@ -252,57 +253,3 @@ impl CampaignManagement {
         env.storage().instance().has(&key)
     }
 }
-
-// soroban contract deploy \
-//   --wasm target/wasm32-unknown-unknown/release/user_registry.wasm \
-//   --source alice \
-//   --network testnet
-
-//   soroban contract invoke \
-//   --id CDEXXZ7GUOFKYOA7VKA7S4LO23EHIBRSDCRAAJCDCOPLL7CVTDS5SI7E \
-//   --source alice \
-//   --network testnet \
-//   -- \
-//   issue_new_token \
-//   --items '["food"]' \
-//   --merchants '["GB5JVYGERUEATTCBA4PTOC7CKINQPBBROFU75SZ5CFG6UDC5Y3MKNP2D"]'
-
-
-// soroban contract invoke \
-//  --id CC5OZSMIKXJHBUI2PDM55N7TLCJRHDNXMS27GYZLAW7UKB5QRXYK6DU5 \
-//  --source bob \
-//  --network testnet \
-//  -- \
-//  create_campaign \
-//  --name "Donate Medicine" \
-//  --description "I want to donate medicine" \
-//  --no_of_recipients 1 \
-//  --token_address CB7LGIQUPE26SXIE4XNAWLBTYB46VXQBUN4MG6LH24NED3DCPL3XGA6E \
-//  --amount 10 \
-//  --creator bob
-
-//   localcoin addr - CA6NUSK2W5GR5PAGGLOUUYZ7E67DQJTZFRDZRXY4TS3AF3ZZYTUMTN3T
-  
-//   soroban contract invoke \
-//   --id CDZMT6TRDSE4WS3DLJSUEKEUAPXHBXDTGAUW4AICR2LG2QW5O4ASZMYV \
-//   --source jack \
-//   --network testnet \
-//   -- \
-//   merchant_registration \
-//   --merchant_wallet carol \
-//   --proprietor "carol" \
-//   --phone_no "+977-94488888888" \
-//   --store_name "cbs4atore" \
-//   --location "ccc"
-  
-//   soroban contract invoke \
-//   --id CAMDZ6NP7HC6ZJ2FE2X4XPL4B4MZCLUBDH6OZW3VNF73A55J5QQEGO2Q \
-//   --source alice \
-//   --network testnet \
-//   -- \
-//   set_campaign_info \
-//   --name "hh" \
-//   --description "Hello there" \
-//   --no_of_recipients 1 \
-//   --token_address alice \
-//   --creator alice

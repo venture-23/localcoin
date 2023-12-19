@@ -159,7 +159,7 @@ impl IssuanceManagement {
         let mut tokens_balance: Map<String, i128> = Map::new(&env);
         for token in tokens.iter() {
             let token_client = localcoin::Client::new(&env, &token);
-            let balance = token_client.balance_of(&user);
+            let balance = token_client.balance(&user);
             let name = token_client.name();
             if balance > 0 {
                 tokens_balance.set(name, balance);
