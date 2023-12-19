@@ -1,5 +1,6 @@
 #![no_std]
 use soroban_sdk::{contract, contractimpl, contracttype, Address, BytesN, Env, String, Vec, Map, vec};
+mod test;
 
 mod localcoin {
     soroban_sdk::contractimport!(
@@ -22,7 +23,8 @@ pub enum DataKeys{
     SaltCounter,
     CampaignManagement,
     ItemsAssociated(Address),
-    MerchantsAssociated(Address)
+    MerchantsAssociated(Address),
+    TokenAddress(String)
 }
 
 #[contract]
@@ -98,6 +100,10 @@ impl IssuanceManagement {
             // store merchants associated with token
             let merchant_key = DataKeys::MerchantsAssociated(deployed_token.clone());
             env.storage().instance().set(&merchant_key, &merchants);
+
+            // store token address of the token symbol
+            let token_addr_key = DataKeys::TokenAddress(symbol.clone());
+            env.storage().instance().set(&token_addr_key, &deployed_token.clone());
 
             //  send deployed tokens to user_registry contract
             user_registry_client.add_deployed_tokens(&deployed_token);
@@ -207,6 +213,15 @@ impl IssuanceManagement {
             items
         } else {
             vec![&env]
+        }
+    }
+
+    pub fn get_token_address(env:Env, symbol:String) -> Address {
+        let key = DataKeys::TokenAddress(symbol);
+        if let Some(token_addr) = env.storage().instance().get::<DataKeys, Address>(&key) {
+            token_addr
+        } else {
+            panic!("Address for given symbol not available.")
         }
     }
 

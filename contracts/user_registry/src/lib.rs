@@ -29,7 +29,7 @@ impl UserRegisrty {
         env.storage().instance().set(&key, &super_admin)
     }
 
-    pub fn set_campaign_managment(env:Env, campaign_management:Address) {
+    pub fn set_campaign_management(env:Env, campaign_management:Address) {
         let super_admin = Self::get_super_admin(env.clone());
         super_admin.require_auth();
 
@@ -37,7 +37,7 @@ impl UserRegisrty {
         env.storage().instance().set(&key, &campaign_management)
     }
 
-    pub fn set_issuance_managment(env:Env, issuance_management:Address) {
+    pub fn set_issuance_management(env:Env, issuance_management:Address) {
         let super_admin = Self::get_super_admin(env.clone());
         super_admin.require_auth();
 
@@ -181,4 +181,3 @@ impl UserRegisrty {
         env.storage().instance().has(&key)
     }
 }
-
