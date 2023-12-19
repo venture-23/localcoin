@@ -6,7 +6,7 @@ pub fn read_balance(e: &Env, addr: Address) -> i128 {
     if let Some(balance) = e.storage().persistent().get::<DataKey, i128>(&key) {
         e.storage()
             .persistent()
-            .bump(&key, BALANCE_LIFETIME_THRESHOLD, BALANCE_BUMP_AMOUNT);
+            .extend_ttl(&key, BALANCE_LIFETIME_THRESHOLD, BALANCE_BUMP_AMOUNT);
         balance
     } else {
         0
@@ -18,7 +18,7 @@ fn write_balance(e: &Env, addr: Address, amount: i128) {
     e.storage().persistent().set(&key, &amount);
     e.storage()
         .persistent()
-        .bump(&key, BALANCE_LIFETIME_THRESHOLD, BALANCE_BUMP_AMOUNT);
+        .extend_ttl(&key, BALANCE_LIFETIME_THRESHOLD, BALANCE_BUMP_AMOUNT);
 }
 
 pub fn receive_balance(e: &Env, addr: Address, amount: i128) {
@@ -39,7 +39,7 @@ fn write_total_supply(e: &Env, amount: i128) {
     e.storage().persistent().set(&key, &amount);
     e.storage()
         .persistent()
-        .bump(&key, BALANCE_LIFETIME_THRESHOLD, BALANCE_BUMP_AMOUNT);
+        .extend_ttl(&key, BALANCE_LIFETIME_THRESHOLD, BALANCE_BUMP_AMOUNT);
 }
 
 fn write_token_burnt(e: &Env, amount: i128) {
@@ -47,7 +47,7 @@ fn write_token_burnt(e: &Env, amount: i128) {
     e.storage().persistent().set(&key, &amount);
     e.storage()
         .persistent()
-        .bump(&key, BALANCE_LIFETIME_THRESHOLD, BALANCE_BUMP_AMOUNT);
+        .extend_ttl(&key, BALANCE_LIFETIME_THRESHOLD, BALANCE_BUMP_AMOUNT);
 }
 
 pub fn update_mint_supply(e: &Env, amount: i128) {
@@ -67,7 +67,7 @@ pub fn read_token_burnt(e: &Env) -> i128 {
     if let Some(total_burnt) = e.storage().persistent().get::<DataKey, i128>(&key) {
         e.storage()
             .persistent()
-            .bump(&key, BALANCE_LIFETIME_THRESHOLD, BALANCE_BUMP_AMOUNT);
+            .extend_ttl(&key, BALANCE_LIFETIME_THRESHOLD, BALANCE_BUMP_AMOUNT);
         total_burnt
     } else {
         0
@@ -79,7 +79,7 @@ pub fn read_total_supply(e: &Env) -> i128 {
     if let Some(total_supply) = e.storage().persistent().get::<DataKey, i128>(&key) {
         e.storage()
             .persistent()
-            .bump(&key, BALANCE_LIFETIME_THRESHOLD, BALANCE_BUMP_AMOUNT);
+            .extend_ttl(&key, BALANCE_LIFETIME_THRESHOLD, BALANCE_BUMP_AMOUNT);
         total_supply
     } else {
         0
