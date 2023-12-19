@@ -39,7 +39,8 @@ pub enum DataKeys {
     StableCoin,
     Campaigns,
     SaltCounter,
-    CreatorCampaigns(Address)
+    CreatorCampaigns(Address),
+    CampaignsName
 }
 
 #[contract]
@@ -94,7 +95,7 @@ impl CampaignManagement {
 
             // dynamic salt count to deploy multiple contracts
             let salt_key = DataKeys::SaltCounter;
-            let salt_count: u32 = env.storage().instance().get::<DataKeys, u32>(&salt_key).unwrap_or(0);
+            let salt_count: u32 = env.storage().instance().get::<DataKeys, u32>(&salt_key).unwrap_or(15);
             let salt = BytesN::from_array(&env, &[salt_count.try_into().unwrap(); 32]);
 
             // deploy campaign contract
@@ -119,6 +120,12 @@ impl CampaignManagement {
             let mut campaign_list = Self::get_campaigns(env.clone());
             campaign_list.push_back(campaign_contract_addr.clone());
             env.storage().instance().set(&campaign_key, &campaign_list);
+
+            // store campaign name
+            let campaign_name_key = DataKeys::CampaignsName;
+            let mut campaign_dict = Self::get_campaigns_name(env.clone());
+            campaign_dict.set(campaign_contract_addr.clone(), name.clone());
+            env.storage().instance().set(&campaign_name_key, &campaign_dict);
 
             // store campaigns info of the creator
             let key = DataKeys:: CreatorCampaigns(creator.clone());
@@ -192,6 +199,15 @@ impl CampaignManagement {
         }
     }
 
+    pub fn get_campaigns_name(env:Env) -> Map<Address, String> {
+        let key = DataKeys::CampaignsName;
+        if let Some(campaigns_name) = env.storage().instance().get::<DataKeys, Map<Address, String>>(&key) {
+            campaigns_name
+        } else {
+            Map::new(&env)
+        }
+    }
+
     pub fn get_creator_campaigns(env:Env, creator:Address) -> Vec<CampaignDetail> {
         let key = DataKeys:: CreatorCampaigns(creator);
         if let Some(campaigns_info) = env.storage().instance().get::<DataKeys, Vec<CampaignDetail>>(&key) {
@@ -237,55 +253,3 @@ impl CampaignManagement {
         env.storage().instance().has(&key)
     }
 }
-
-// soroban contract deploy \
-//   --wasm target/wasm32-unknown-unknown/release/campaign_management.wasm \
-//   --source alice \
-//   --network testnet
-
-//   soroban contract invoke \
-//   --id CDEXXZ7GUOFKYOA7VKA7S4LO23EHIBRSDCRAAJCDCOPLL7CVTDS5SI7E \
-//   --source alice \
-//   --network testnet \
-//   -- \
-//   issue_new_token \
-//   --items '["food"]' \
-//   --merchants '["GB5JVYGERUEATTCBA4PTOC7CKINQPBBROFU75SZ5CFG6UDC5Y3MKNP2D"]'
-
-
-// soroban contract invoke \
-//  --id CC5OZSMIKXJHBUI2PDM55N7TLCJRHDNXMS27GYZLAW7UKB5QRXYK6DU5 \
-//  --source bob \
-//  --network testnet \
-//  -- \
-//  create_campaign \
-//  --name "Donate Medicine" \
-//  --description "I want to donate medicine" \
-//  --no_of_recipients 1 \
-//  --token_address CB7LGIQUPE26SXIE4XNAWLBTYB46VXQBUN4MG6LH24NED3DCPL3XGA6E \
-//  --amount 10 \
-//  --creator bob
-
-//   localcoin addr - CA6NUSK2W5GR5PAGGLOUUYZ7E67DQJTZFRDZRXY4TS3AF3ZZYTUMTN3T
-  
-//   soroban contract invoke \
-//   --id CDZMT6TRDSE4WS3DLJSUEKEUAPXHBXDTGAUW4AICR2LG2QW5O4ASZMYV \
-//   --source jack \
-//   --network testnet \
-//   -- \
-//   merchant_registration \
-//   --merchant_wallet carol \
-//   --proprietor "carol" \
-//   --phone_no "+977-94488888888" \
-//   --store_name "cbs4atore" \
-//   --location "ccc"
-
-//   soroban contract invoke \
-//   --id CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA \
-//   --source alice \
-//   --network testnet \
-//   -- \
-//   balance \
-//   --id alice
-
-//   soroban lab token wrap --asset="USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5" --rpc-url https://soroban-testnet.stellar.org --network-passphrase 'Test SDF Network ; September 2015'
