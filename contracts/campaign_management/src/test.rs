@@ -101,7 +101,7 @@ fn test_valid_create_campaign_flow() {
     let localcoin_client = localcoin::Client::new(&env, &localcoin_address);
     localcoin_client.initialize(&super_admin, &7, &String::from_str(&env, "USDC Coin"), &String::from_str(&env, "USDC"));
     localcoin_client.mint(&creator, &100);
-    assert_eq!(localcoin_client.balance_of(&creator), 100);
+    assert_eq!(localcoin_client.balance(&creator), 100);
 
     // initialize issuance management
     issuance_management.initialize(&user_registry_address);
