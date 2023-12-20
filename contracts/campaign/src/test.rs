@@ -16,12 +16,12 @@ fn deploy_campaign<'a>(env: &Env, name:String, description:String, no_of_recipie
 #[test]
 fn test_set_campaign_info() {
     let env = Env::default();
-    let creator = Address::random(&env);
-    let token_address = Address::random(&env);
+    let creator = Address::generate(&env);
+    let token_address = Address::generate(&env);
     
     // set campaign info
-    let name = String::from_slice(&env, "Test campaign ");
-    let description = String::from_slice(&env, "This is test camapaign");
+    let name = String::from_str(&env, "Test campaign ");
+    let description = String::from_str(&env, "This is test camapaign");
     let no_of_recipients:u32 = 1;
 
     let (_, campaign) = deploy_campaign(&env, name.clone(), description.clone(), no_of_recipients.clone(), token_address.clone(), creator.clone());
@@ -39,12 +39,12 @@ fn test_set_campaign_info() {
 #[should_panic(expected = "Campaign info already set.")]
 fn test_double_set_campaign_info() {
     let env = Env::default();
-    let creator = Address::random(&env);
-    let token_address = Address::random(&env);
+    let creator = Address::generate(&env);
+    let token_address = Address::generate(&env);
     
     // set campaign info
-    let name = String::from_slice(&env, "Test campaign ");
-    let description = String::from_slice(&env, "This is test camapaign");
+    let name = String::from_str(&env, "Test campaign ");
+    let description = String::from_str(&env, "This is test camapaign");
     let no_of_recipients:u32 = 1;
 
     let (_, campaign) = deploy_campaign(&env, name.clone(), description.clone(), no_of_recipients.clone(), token_address.clone(), creator.clone());
@@ -57,14 +57,14 @@ fn test_transfer_token_to_recipient() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let admin1 = Address::random(&env);
-    let creator = Address::random(&env);
-    let recipient = Address::random(&env);
+    let admin1 = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let recipient = Address::generate(&env);
     let amount:i128 = 10;
 
     // set campaign info
-    let name = String::from_slice(&env, "Test campaign ");
-    let description = String::from_slice(&env, "This is test camapaign");
+    let name = String::from_str(&env, "Test campaign ");
+    let description = String::from_str(&env, "This is test camapaign");
     let no_of_recipients:u32 = 1;
 
     let localcoin_address = env.register_contract_wasm(None, localcoin::WASM);
@@ -72,7 +72,7 @@ fn test_transfer_token_to_recipient() {
 
     let (campaign_address, campaign) = deploy_campaign(&env, name.clone(), description.clone(), no_of_recipients.clone(), localcoin_address.clone(), creator.clone());
 
-    localcoin_client.initialize(&admin1, &7, &String::from_slice(&env, "TEST"), &String::from_slice(&env, "TST"));
+    localcoin_client.initialize(&admin1, &7, &String::from_str(&env, "TEST"), &String::from_str(&env, "TST"));
     localcoin_client.mint(&campaign_address, &100);
     assert_eq!(
         env.auths(),
@@ -112,15 +112,15 @@ fn test_transfer_token_to_recipient_from_non_campaign_creator() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let admin1 = Address::random(&env);
-    let non_campaign_creator = Address::random(&env);
-    let creator = Address::random(&env);
-    let recipient = Address::random(&env);
+    let admin1 = Address::generate(&env);
+    let non_campaign_creator = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let recipient = Address::generate(&env);
     let amount:i128 = 10;
 
     // set campaign info
-    let name = String::from_slice(&env, "Test campaign ");
-    let description = String::from_slice(&env, "This is test camapaign");
+    let name = String::from_str(&env, "Test campaign ");
+    let description = String::from_str(&env, "This is test camapaign");
     let no_of_recipients:u32 = 1;
 
     let localcoin_address = env.register_contract_wasm(None, localcoin::WASM);
@@ -128,7 +128,7 @@ fn test_transfer_token_to_recipient_from_non_campaign_creator() {
 
     let (campaign_address, campaign) = deploy_campaign(&env, name.clone(), description.clone(), no_of_recipients.clone(), localcoin_address.clone(), creator.clone());
 
-    localcoin_client.initialize(&admin1, &7, &String::from_slice(&env, "TEST"), &String::from_slice(&env, "TST"));
+    localcoin_client.initialize(&admin1, &7, &String::from_str(&env, "TEST"), &String::from_str(&env, "TST"));
 
     campaign.transfer_tokens_to_recipient(&recipient, &amount);
     assert_eq!(
