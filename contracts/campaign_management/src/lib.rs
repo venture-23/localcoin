@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, token, Address, BytesN, Env, String, Vec, Val, vec};
+use soroban_sdk::{contract, contractimpl, contracttype, token, Address, BytesN, Env, String, Vec, Map, Val, vec};
 mod test;
 
 mod campaign_contract {
@@ -95,7 +95,7 @@ impl CampaignManagement {
 
             // dynamic salt count to deploy multiple contracts
             let salt_key = DataKeys::SaltCounter;
-            let salt_count: u32 = env.storage().instance().get::<DataKeys, u32>(&salt_key).unwrap_or(15);
+            let salt_count: u32 = env.storage().instance().get::<DataKeys, u32>(&salt_key).unwrap_or(0);
             let salt = BytesN::from_array(&env, &[salt_count.try_into().unwrap(); 32]);
 
             // deploy campaign contract
@@ -179,13 +179,14 @@ impl CampaignManagement {
         let stable_coin_addr = Self::get_stable_coin(env.clone());
         let super_admin = Self::get_super_admin(env.clone());
         let stable_coin_client = token::Client::new(&env, &stable_coin_addr);
+        let current_contract_address = env.current_contract_address();
 
-        let stable_coin_balance = stable_coin_client.balance(&from);
+        let stable_coin_balance = stable_coin_client.balance(&current_contract_address);
         if !stable_coin_balance >= amount {
             panic!("Insufficient stable coin in camapign management for settelment.")
         }
         // transfer stable coin to super admin
-        stable_coin_client.transfer(&env.current_contract_address(), &super_admin, &amount);
+        stable_coin_client.transfer(&current_contract_address, &super_admin, &amount);
         // emit event
         env.events().publish((from, amount, token_address), "Settelment requested.");
     }
