@@ -24,7 +24,7 @@ pub enum DataKeys{
     CampaignManagement,
     ItemsAssociated(Address),
     MerchantsAssociated(Address),
-    TokenAddress(String)
+    TokenNameAndAddress
 }
 
 #[contract]
@@ -63,13 +63,18 @@ impl IssuanceManagement {
             let super_admin = Self::get_super_admin(env.clone());
             super_admin.require_auth();
 
+            let mut existing_token_name_addr = Self::get_token_name_address(env.clone());
+            if existing_token_name_addr.contains_key(symbol.clone()) {
+                panic!("Token with given symbol already exists.")
+            }
+
             let campaign_management_addr = Self::get_campaign_management(env.clone());
             let user_registry_addr = Self::get_user_registry(env.clone());
             let user_registry_client = user_registry::Client::new(&env, &user_registry_addr);
 
             let verified_merchants = user_registry_client.get_verified_merchants();
             for merchant in merchants.iter() {
-                if !verified_merchants.contains(merchant) {
+                if !(verified_merchants.contains(merchant)) {
                     panic!("Merchants list contains unverified merchant.")
                 }
             }
@@ -102,8 +107,9 @@ impl IssuanceManagement {
             env.storage().instance().set(&merchant_key, &merchants);
 
             // store token address of the token symbol
-            let token_addr_key = DataKeys::TokenAddress(symbol.clone());
-            env.storage().instance().set(&token_addr_key, &deployed_token.clone());
+            let token_addr_key = DataKeys::TokenNameAndAddress;
+            existing_token_name_addr.set(symbol.clone(), deployed_token.clone());
+            env.storage().instance().set(&token_addr_key, &existing_token_name_addr);
 
             //  send deployed tokens to user_registry contract
             user_registry_client.add_deployed_tokens(&deployed_token);
@@ -118,7 +124,7 @@ impl IssuanceManagement {
         super_admin.require_auth();
 
         let key = DataKeys::ItemsAssociated(token_address.clone());
-        if !env.storage().instance().has(&key) {
+        if !(env.storage().instance().has(&key)) {
             panic!("Token doesn't exist.")
         }
 
@@ -141,7 +147,7 @@ impl IssuanceManagement {
         super_admin.require_auth();
 
         let key = DataKeys::MerchantsAssociated(token_address.clone());
-        if !env.storage().instance().has(&key) {
+        if !(env.storage().instance().has(&key)) {
             panic!("Token doesn't exist.")
         }
 
@@ -216,12 +222,12 @@ impl IssuanceManagement {
         }
     }
 
-    pub fn get_token_address(env:Env, symbol:String) -> Address {
-        let key = DataKeys::TokenAddress(symbol);
-        if let Some(token_addr) = env.storage().instance().get::<DataKeys, Address>(&key) {
-            token_addr
+    pub fn get_token_name_address(env:Env) -> Map<String, Address> {
+        let key = DataKeys::TokenNameAndAddress;
+        if let Some(token_name_addr) = env.storage().instance().get::<DataKeys, Map<String, Address>>(&key) {
+            token_name_addr
         } else {
-            panic!("Address for given symbol not available.")
+            Map::new(&env)
         }
     }
 
