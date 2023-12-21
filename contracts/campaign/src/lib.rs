@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, Env, String, Address, Vec, vec, Val};
+use soroban_sdk::{contract, contractimpl, contracttype, Env, String, Address, Map, Val};
 
 mod test;
 
@@ -36,10 +36,12 @@ impl Campaign {
         let token_key = DataKeys::TokenAddress;
         env.storage().instance().set(&token_key, &token_address);
         
-        let mut campaign_info: Vec<Val> = Vec::new(&env);
-        campaign_info.push_back(name.to_val());
-        campaign_info.push_back(description.to_val());
-        campaign_info.push_back(no_of_recipients.into());
+        let mut campaign_info: Map<String, Val> = Map::new(&env);
+        campaign_info.set(String::from_str(&env, "name"), name.to_val());
+        campaign_info.set(String::from_str(&env, "description"), description.to_val());
+        campaign_info.set(String::from_str(&env, "no_of_recipients"), no_of_recipients.into());
+        campaign_info.set(String::from_str(&env, "token_address"), token_address.to_val());
+        campaign_info.set(String::from_str(&env, "creator"), creator.to_val());
 
         // set campaign info
         let campaign_key = DataKeys:: CampaignInfo;
@@ -85,13 +87,22 @@ impl Campaign {
         }
     }
 
-    pub fn get_campaign_info(env:Env) -> Vec<Val> {
+    pub fn get_campaign_info(env:Env) -> Map<String, Val> {
         let key = DataKeys:: CampaignInfo;
-        if let Some(campaign_info) = env.storage().instance().get::<DataKeys, Vec<Val>>(&key) {
+        if let Some(campaign_info) = env.storage().instance().get::<DataKeys, Map<String, Val>>(&key) {
             campaign_info
         } else {
-            vec![&env] 
+            Map::new(&env) 
         }
+    }
+
+    pub fn get_campaign_balance(env:Env) ->i128 {
+        let token_addr = Self::get_token_address(env.clone());
+        let current_contract_addr = env.current_contract_address();
+        let token_client = localcoin::Client::new(&env, &token_addr);
+
+        let balance = token_client.balance(&current_contract_addr);
+        balance
     }
 }
 
