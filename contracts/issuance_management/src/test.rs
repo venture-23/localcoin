@@ -110,23 +110,8 @@ fn test_valid_complete_flow() {
     let symbol = String::from_str(&env, "TKN1");
 
     issuance_management.issue_new_token(&7, &name, &symbol, &items_associated,  &merchants_associated);
-    // assert_eq!(
-    //     env.auths(),
-    //     std::vec![(
-    //         super_admin.clone(),
-    //         AuthorizedInvocation {
-    //         function: AuthorizedFunction::Contract((
-    //             issuance_management.address.clone(),
-    //             Symbol::new(&env, "issue_new_token"),
-    //             (7_u32, name.clone(), symbol.clone(), 
-    //             items_associated.clone(), merchants_associated.clone()).into_val(&env)
-    //         )),
-    //         sub_invocations: std::vec![]
-    //         }
-    //     )]
-    // );
 
-    let token_address = issuance_management.get_token_address(&String::from_str(&env, "TKN1"));
+    let token_address = issuance_management.get_token_name_address().get_unchecked(String::from_str(&env, "TKN1"));
     assert_eq!(issuance_management.get_items_assocoated(&token_address), items_associated);
 
     assert_eq!(issuance_management.get_merchants_assocoated(&token_address), merchants_associated);
@@ -256,7 +241,7 @@ fn test_non_admin_call_add_token_item() {
     issuance_management.issue_new_token(&7, &String::from_str(&env, "Token3"), &String::from_str(&env, "TKN3"),
     &items_associated,  &merchants_associated);
 
-    let token_address = issuance_management.get_token_address(&String::from_str(&env, "TKN3"));
+    let token_address = issuance_management.get_token_name_address().get_unchecked(String::from_str(&env, "TKN3"));
 
     let new_items_associated = vec![&env, String::from_str(&env, "Food")];
     issuance_management.add_token_items(&token_address, &new_items_associated);
@@ -329,7 +314,7 @@ fn test_add_duplicate_item() {
     issuance_management.issue_new_token(&7, &String::from_str(&env, "Token4"), &String::from_str(&env, "TKN4"),
     &items_associated,  &merchants_associated);
 
-    let token_address = issuance_management.get_token_address(&String::from_str(&env, "TKN4"));
+    let token_address = issuance_management.get_token_name_address().get_unchecked(String::from_str(&env, "TKN4"));
 
     // try to add already existing item
     let new_items_associated = vec![&env, String::from_str(&env, "Medicine")];
@@ -356,7 +341,7 @@ fn test_non_admin_call_add_token_merchant() {
     issuance_management.issue_new_token(&7, &String::from_str(&env, "Token5"), &String::from_str(&env, "TKN5"),
     &items_associated,  &merchants_associated);
 
-    let token_address = issuance_management.get_token_address(&String::from_str(&env, "TKN5"));
+    let token_address = issuance_management.get_token_name_address().get_unchecked(String::from_str(&env, "TKN5"));
 
     let new_merchant_list = vec![&env, merchant];
     issuance_management.add_token_merchants(&token_address, &new_merchant_list);
@@ -411,7 +396,7 @@ fn test_add_duplicate_merchant() {
     issuance_management.issue_new_token(&7, &String::from_str(&env, "Token6"), &String::from_str(&env, "TKN6"),
     &items_associated,  &merchants_associated);
 
-    let token_address = issuance_management.get_token_address(&String::from_str(&env, "TKN6"));
+    let token_address = issuance_management.get_token_name_address().get_unchecked(String::from_str(&env, "TKN6"));
 
     // try to add already existing merchant
     let new_merchant = vec![&env, merchant];
