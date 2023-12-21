@@ -111,7 +111,7 @@ impl LocalCoin {
         let issuance_client = issuance::Client::new(&e, &issuance_addr);
         
         let merchants_associated = issuance_client.get_merchants_assocoated(&current_contract);
-        if !merchants_associated.contains(to.clone()) {
+        if !(merchants_associated.contains(to.clone())) {
             panic!("This token's item is not accepted by the merchant.")
         }
         Self::transfer(e, from, to, amount);
