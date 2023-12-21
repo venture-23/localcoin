@@ -3,7 +3,7 @@ extern crate std;
 use super::*;
 use crate::{localcoin, Campaign, CampaignClient};
 
-use soroban_sdk::{testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation}, Symbol, Address, Env, IntoVal};
+use soroban_sdk::{testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation}, Symbol, Val, Address, Env, IntoVal};
 
 fn deploy_campaign<'a>(env: &Env, name:String, description:String, no_of_recipients:u32, token_address:Address, creator:Address) -> (Address, CampaignClient<'a>) {
     let contract_id = env.register_contract(None, Campaign);
@@ -26,10 +26,12 @@ fn test_set_campaign_info() {
 
     let (_, campaign) = deploy_campaign(&env, name.clone(), description.clone(), no_of_recipients.clone(), token_address.clone(), creator.clone());
 
-    let mut campaign_info: Vec<Val> = Vec::new(&env);
-    campaign_info.push_back(name.to_val());
-    campaign_info.push_back(description.to_val());
-    campaign_info.push_back(no_of_recipients.into());
+    let mut campaign_info: Map<String, Val> = Map::new(&env);
+    campaign_info.set(String::from_str(&env, "name"), name.to_val());
+    campaign_info.set(String::from_str(&env, "description"), description.to_val());
+    campaign_info.set(String::from_str(&env, "no_of_recipients"), no_of_recipients.into());
+    campaign_info.set(String::from_str(&env, "token_address"), token_address.to_val());
+    campaign_info.set(String::from_str(&env, "creator"), creator.to_val());
     
     // assert campaign info
     assert_eq!(campaign.get_campaign_info(), campaign_info);
