@@ -29,7 +29,7 @@ pub struct CampaignDetail {
     pub campaign: Address,
     pub token: Address,
     pub token_minted: i128,
-    pub info: Vec<Val>
+    pub info: Map<String, Val>
 }
 
 #[derive(Clone)]
@@ -82,7 +82,7 @@ impl CampaignManagement {
             let user_registry_client = user_registry::Client::new(&env, &user_registry_addr);
 
             let valid_tokens = user_registry_client.get_available_tokens();
-            if !valid_tokens.contains(token_address.clone()) {
+            if !(valid_tokens.contains(token_address.clone())) {
                 panic!("Invalid token passed in param.")
             }
 
@@ -131,10 +131,10 @@ impl CampaignManagement {
             let key = DataKeys:: CreatorCampaigns(creator.clone());
             let mut creator_campaigns = Self::get_creator_campaigns(env.clone(), creator.clone());
 
-            let mut new_campaign_info: Vec<Val> = Vec::new(&env);
-            new_campaign_info.push_back(name.to_val());
-            new_campaign_info.push_back(description.to_val());
-            new_campaign_info.push_back(no_of_recipients.into());
+            let mut new_campaign_info: Map<String, Val> = Map::new(&env);
+            new_campaign_info.set(String::from_str(&env, "name"), name.to_val());
+            new_campaign_info.set(String::from_str(&env, "description"), description.to_val());
+            new_campaign_info.set(String::from_str(&env, "no_of_recipients"), no_of_recipients.into());
 
             let campaign_value = CampaignDetail {
                 campaign: campaign_contract_addr,
@@ -152,23 +152,26 @@ impl CampaignManagement {
         // transaction should be sent from 'from' addesss
         from.require_auth();
 
+        if amount <= 0 {
+            panic!("Amount cannot be equal or less than zero.")
+        }
         let user_registry = Self::get_user_registry(env.clone());
         let user_registry_client = user_registry::Client::new(&env, &user_registry);
 
         let valid_tokens = user_registry_client.get_available_tokens();
-        if !valid_tokens.contains(token_address.clone()) {
+        if !(valid_tokens.contains(token_address.clone())) {
             panic!("Invalid token passed in param.")
         }
 
         let merchants = user_registry_client.get_verified_merchants();
-        if !merchants.contains(&from) {
+        if !(merchants.contains(&from)) {
             panic!("Caller not merchant.")
         }
 
         let token_client = localcoin::Client::new(&env, &token_address);
         // verify balance of merchant
         let balance = token_client.balance(&from);
-        if !balance >= amount {
+        if !(balance >= amount) {
             panic!("Insufficient token for settelment.")
         }
 
@@ -182,7 +185,7 @@ impl CampaignManagement {
         let current_contract_address = env.current_contract_address();
 
         let stable_coin_balance = stable_coin_client.balance(&current_contract_address);
-        if !stable_coin_balance >= amount {
+        if !(stable_coin_balance >= amount) {
             panic!("Insufficient stable coin in camapign management for settelment.")
         }
         // transfer stable coin to super admin

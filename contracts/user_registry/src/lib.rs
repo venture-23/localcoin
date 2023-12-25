@@ -77,7 +77,7 @@ impl UserRegisrty {
         super_admin.require_auth();
 
         let key = DataKeys::MerchantsInfo(merchant_addr.clone());
-        if !env.storage().instance().has(&key) {
+        if !(env.storage().instance().has(&key)) {
             panic!("No registration request.")
         }
 
