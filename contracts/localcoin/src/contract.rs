@@ -110,7 +110,7 @@ impl LocalCoin {
         let issuance_addr = Self::get_issuance_management(e.clone());
         let issuance_client = issuance::Client::new(&e, &issuance_addr);
         
-        let merchants_associated = issuance_client.get_merchants_assocoated(&current_contract);
+        let merchants_associated = issuance_client.get_merchants_associated(&current_contract);
         if !(merchants_associated.contains(to.clone())) {
             panic!("This token's item is not accepted by the merchant.")
         }
