@@ -105,20 +105,3 @@ impl Campaign {
         balance
     }
 }
-
-
-// soroban contract deploy \
-//   --wasm target/wasm32-unknown-unknown/release/campaign.wasm \
-//   --source alice \
-//   --network testnet
-
-//   soroban contract invoke \
-//   --id CDX5RNFOJGOXVMITENBG4CFLDA4L7TS3FZIS6JUB74NTRLMG6RRT2MY4 \
-//   --source alice \
-//   --network testnet \
-//   -- \
-//   set_campaign_info \
-//   --name "Hello 2" \
-//   --description "How u doin" \
-//   --no_of_recipients 3 \
-//   --creator GB6A2R4B7MSB7HDD56DC4KIUCML3QGF2IT4JLTFHJNMHGGCJOVS3TELN
