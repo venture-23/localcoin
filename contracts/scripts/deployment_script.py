@@ -8,6 +8,10 @@ from stellar_sdk.exceptions import PrepareTransactionException
 from stellar_sdk.soroban_rpc import GetTransactionStatus, SendTransactionStatus
 from stellar_sdk.auth import authorize_entry
 
+SECRET_KEY = "SB46364SGIGPEQOLRXL6RTVDP4X2HBIMSNPIG246GAQC7VHHGHBOEV4M"
+SUPER_ADMIN = "GB6A2R4B7MSB7HDD56DC4KIUCML3QGF2IT4JLTFHJNMHGGCJOVS3TELN"
+STABLE_COIN = "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA"
+
 # TODO: You need to replace the following parameters according to the actual situation
 rpc_server_url = "https://soroban-testnet.stellar.org:443"
 network_passphrase = Network.TESTNET_NETWORK_PASSPHRASE
@@ -167,13 +171,14 @@ def send_tx(contract_id, secret, func_name, args):
     else:
         print(f"Transaction failed: {get_transaction_data.result_xdr}")
         
-path = ["../localcoin/target/wasm32-unknown-unknown/release/localcoin.wasm", "../campaign/target/wasm32-unknown-unknown/release/campaign.wasm",
-"../campaign_management/target/wasm32-unknown-unknown/release/campaign_management.wasm", "../user_registry/target/wasm32-unknown-unknown/release/user_registry.wasm"
-, "../issuance_management/target/wasm32-unknown-unknown/release/issuance_management.wasm"
+path = [
+"../campaign_management/target/wasm32-unknown-unknown/release/campaign_management.wasm",
+"../registry/target/wasm32-unknown-unknown/release/registry.wasm",
+"../issuance_management/target/wasm32-unknown-unknown/release/issuance_management.wasm"
 ]
 
 # CONTRACT INITIALIZATION
-function_call = {"user_registry.wasm": 
+function_call = {"registry.wasm": 
 [
     {"initialize" : "SUPER_ADMIN" },
     {"set_campaign_management": "CAMPAIGN_MANAGEMENT"},
@@ -182,20 +187,17 @@ function_call = {"user_registry.wasm":
 
     "issuance_management.wasm": 
     [
-    {"initialize" : "USER_REGISTRY"},
+    {"initialize" : "REGISTRY"},
     {"set_campaign_management": "CAMPAIGN_MANAGEMENT"}
     ],
 
     "campaign_management.wasm":
     [
-        {"initialize": "USER_REGISTRY"},
+        {"initialize": "REGISTRY"},
     {"set_stable_coin_address": "STABLE_COIN" }, 
     ]
  }
 
-SECRET_KEY = "SCE6NIWR3BCACZXEQXOOMFZMAORCFNBXOU7EVTHMS6SMOBIKUGSPPOYD"
-SUPER_ADMIN = "GDA7PB2O7TEK3BVKODZFHZD3TLYQ6HBRV7WWSMV4LTSYTZH5V2ISGUSM"
-STABLE_COIN = "GDA7PB2O7TEK3BVKODZFHZD3TLYQ6HBRV7WWSMV4LTSYTZH5V2ISGUSM"
 contracts = {}
 for i in path:
     contract_id = deploy_contract(i, SECRET_KEY)
@@ -217,8 +219,8 @@ for contracts_list in function_call.keys():
                     addr = contracts["campaign_management.wasm"]
                 elif functions[func_name] == "ISSUANCE_MANAGEMENT":
                     addr = contracts["issuance_management.wasm"] 
-                elif functions[func_name] == "USER_REGISTRY":
-                    addr = contracts["user_registry.wasm"] 
+                elif functions[func_name] == "REGISTRY":
+                    addr = contracts["registry.wasm"] 
                 elif functions[func_name] == "STABLE_COIN":
                     addr = STABLE_COIN
                 send_tx(contracts[contracts_list], SECRET_KEY, func_name, [scval.to_address(addr)])
