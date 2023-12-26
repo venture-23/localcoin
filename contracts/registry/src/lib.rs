@@ -4,7 +4,7 @@ use soroban_sdk::{contract, contractimpl, contracttype, Address, String, Env, Ve
 mod test;
 
 #[contract]
-pub struct UserRegisrty;
+pub struct Regisrty;
 
 #[derive(Clone)]
 #[contracttype]
@@ -13,13 +13,14 @@ pub enum DataKeys{
     CampaignManagement,
     IssuanceManagement,
     VerifiedMerchantList,
+    UnVerifiedMerchantList,
     DeployedTokensList,
     MerchantsInfo(Address),
     CampaignAdmin(Address)
 }
 
 #[contractimpl]
-impl UserRegisrty {
+impl Regisrty {
     // initaialize contract
     pub fn initialize(env:Env, super_admin:Address){
         if Self::has_administrator(env.clone()) {
@@ -68,7 +69,50 @@ impl UserRegisrty {
             (String::from_str(&env, "location"), location.to_val())
             ];
         env.storage().instance().set(&key, &merchant_info);
+
+        let unverified_merchant_key =  DataKeys::UnVerifiedMerchantList;
+        let mut unverified_merchants_list = Self::get_unverified_merchants(env.clone());
+        unverified_merchants_list.push_back(merchant_addr.clone());
+        env.storage().instance().set(&unverified_merchant_key, &unverified_merchants_list);
+
         env.events().publish((merchant_addr, merchant_info), "Verification request sent.");
+    }
+
+    pub fn update_merchant_info(env:Env, merchant_addr:Address, verify_status:bool, proprietor:String, phone_no:String, store_name:String, location:String) {        
+        // super admin updates merchant info
+        let super_admin = Self::get_super_admin(env.clone());
+        super_admin.require_auth();
+
+        let key = DataKeys::MerchantsInfo(merchant_addr.clone());
+        if !(env.storage().instance().has(&key)) {
+            panic!("No registration request from the merchant.")
+        }
+
+        let merchant_info: Map<String, Val> = map![
+            &env,
+            (String::from_str(&env, "verified_status"), verify_status.into()),
+            (String::from_str(&env, "proprietor"), proprietor.to_val()),
+            (String::from_str(&env, "phone_no"), phone_no.to_val()),
+            (String::from_str(&env, "store_name"), store_name.to_val()),
+            (String::from_str(&env, "location"), location.to_val())
+            ];
+        env.storage().instance().set(&key, &merchant_info);
+
+        if verify_status == false {
+            // remove merchant from verified list
+            let verified_merchant_key = DataKeys::VerifiedMerchantList;
+            let mut merchant_list = Self::get_verified_merchants(env.clone());
+            let Some(item_position) = merchant_list.first_index_of(merchant_addr.clone()) else {panic!("No merchant to pop.")};
+            merchant_list.remove_unchecked(item_position);
+            env.storage().instance().set(&verified_merchant_key, &merchant_list);
+
+            // add merchant back to unverified list
+            let unverified_merchant_key =  DataKeys::UnVerifiedMerchantList;
+            let mut unverified_merchants_list = Self::get_unverified_merchants(env.clone());
+            unverified_merchants_list.push_back(merchant_addr.clone());
+            env.storage().instance().set(&unverified_merchant_key, &unverified_merchants_list);
+        }
+        env.events().publish((merchant_addr, merchant_info), "Merchant info updated.");
     }
 
     pub fn verify_merchant(env:Env, merchant_addr:Address) {
@@ -81,17 +125,28 @@ impl UserRegisrty {
             panic!("No registration request.")
         }
 
+        let mut verified_merchants_list = Self::get_verified_merchants(env.clone());
+        if verified_merchants_list.contains(merchant_addr.clone()) {
+            panic!("Merchant already verified.")
+        }
+
         let mut merchant_info = Self::get_merchant_info(env.clone(), merchant_addr.clone());
         // update merchant status to true
         merchant_info.set(String::from_str(&env, "verified_status"), true.into());
         env.storage().instance().set(&key, &merchant_info);
 
         // store a list of merchants
-        let key = DataKeys::VerifiedMerchantList;
-        let mut merchants_list = Self::get_verified_merchants(env.clone());
-        merchants_list.push_back(merchant_addr.clone());
-        env.storage().instance().set(&key, &merchants_list);
-        
+        let verified_merchant_key = DataKeys::VerifiedMerchantList;
+        verified_merchants_list.push_back(merchant_addr.clone());
+        env.storage().instance().set(&verified_merchant_key, &verified_merchants_list);
+
+        // remove merchant from unverified list
+        let unverified_merchant_key = DataKeys::UnVerifiedMerchantList;
+        let mut unverified_merchants_list = Self::get_unverified_merchants(env.clone());
+        let Some(item_position) = unverified_merchants_list.first_index_of(merchant_addr.clone()) else {panic!("No merchant to pop.")};
+        unverified_merchants_list.remove_unchecked(item_position);
+        env.storage().instance().set(&unverified_merchant_key, &unverified_merchants_list);
+
         env.events().publish((merchant_addr, merchant_info), "Merchant verified.");
     }
 
@@ -119,6 +174,15 @@ impl UserRegisrty {
             merchant_info
         } else {
             map![&env]
+        }
+    }
+
+    pub fn get_unverified_merchants(env:Env) -> Vec<Address> {
+        let key = DataKeys::UnVerifiedMerchantList;
+        if let Some(unverified_merchants_list) = env.storage().instance().get::<DataKeys, Vec<Address>>(&key) {
+            unverified_merchants_list
+        } else {
+            vec![&env]
         }
     }
 

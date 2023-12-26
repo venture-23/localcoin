@@ -166,7 +166,7 @@ To transfer the funds from campaign creator to recipients, creator needs to call
 * Request Settlement
     To request the settlement with the super admin, the merchant needs to call Campaign Management Contract.
 
-    >request_campaign_settelment(from:Address, amount:i128, token_address:Address)
+    >request_campaign_settlement(from:Address, amount:i128, token_address:Address)
     </br>from: Address of Merchant
     </br>token_address: Address of the token that is to be settled,
     </br>amount: amount to be settled
