@@ -1,8 +1,8 @@
 #![cfg(test)]
 extern crate std;
 use super::*;
-use crate::{user_registry, campaign_contract, localcoin, CampaignManagement, CampaignManagementClient};
-use crate::user_registry::Client;
+use crate::{registry, campaign_contract, localcoin, CampaignManagement, CampaignManagementClient};
+use crate::registry::Client;
 
 use soroban_sdk::{testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation}, Symbol, Address, Env, IntoVal};
 
@@ -13,20 +13,20 @@ mod issuance_management {
     );
 }
 
-fn deploy_campaign_management<'a>(env: &Env, user_registry_addr:&Address) -> (Address, CampaignManagementClient<'a>) {
+fn deploy_campaign_management<'a>(env: &Env, registry_addr:&Address) -> (Address, CampaignManagementClient<'a>) {
     let contract_id = env.register_contract(None, CampaignManagement);
     let client = CampaignManagementClient::new(env, &contract_id);
     // initialize contract
-    client.initialize(&user_registry_addr);
+    client.initialize(&registry_addr);
     (contract_id, client)
 }
 
-fn deploy_user_registry<'a>(env: &Env, super_admin:&Address) -> (Address, Client<'a>) {
-    let contract_id = env.register_contract_wasm(None, user_registry::WASM);
-    let user_registry_client = user_registry::Client::new(&env, &contract_id);
+fn deploy_registry<'a>(env: &Env, super_admin:&Address) -> (Address, Client<'a>) {
+    let contract_id = env.register_contract_wasm(None, registry::WASM);
+    let registry_client = registry::Client::new(&env, &contract_id);
     // initialize contract
-    user_registry_client.initialize(&super_admin);
-    (contract_id ,user_registry_client)
+    registry_client.initialize(&super_admin);
+    (contract_id ,registry_client)
 }
 
 #[test]
@@ -34,11 +34,11 @@ fn test_valid_super_admin() {
     let env = Env::default();
     let super_admin = Address::generate(&env);
 
-    let (user_registry_address, user_registry) = deploy_user_registry(&env, &super_admin);
-    let (_, campaign_management) = deploy_campaign_management(&env, &user_registry_address);
+    let (registry_address, registry) = deploy_registry(&env, &super_admin);
+    let (_, campaign_management) = deploy_campaign_management(&env, &registry_address);
     
     // asset valid super admin
-    assert_eq!(campaign_management.get_super_admin(), user_registry.get_super_admin());
+    assert_eq!(campaign_management.get_super_admin(), registry.get_super_admin());
 }
 
 #[test]
@@ -47,11 +47,11 @@ fn test_double_initialize() {
     let env = Env::default();
     let super_admin = Address::generate(&env);
 
-    let (user_registry_address, _) = deploy_user_registry(&env, &super_admin);
-    let (_, campaign_management) = deploy_campaign_management(&env, &user_registry_address);
+    let (registry_address, _) = deploy_registry(&env, &super_admin);
+    let (_, campaign_management) = deploy_campaign_management(&env, &registry_address);
 
     // try to initialize contract again
-    campaign_management.initialize(&user_registry_address);
+    campaign_management.initialize(&registry_address);
 }
 
 #[test]
@@ -62,8 +62,8 @@ fn test_set_stable_coin() {
     let super_admin = Address::generate(&env);
     let stable_coin = Address::generate(&env);
 
-    let (user_registry_address, _) = deploy_user_registry(&env, &super_admin);
-    let (campaign_management_address, campaign_management) = deploy_campaign_management(&env, &user_registry_address);
+    let (registry_address, _) = deploy_registry(&env, &super_admin);
+    let (campaign_management_address, campaign_management) = deploy_campaign_management(&env, &registry_address);
 
     // set stable coin address
     campaign_management.set_stable_coin_address(&stable_coin);
@@ -93,8 +93,8 @@ fn test_set_stable_coin_fron_non_admin() {
     let non_admin = Address::generate(&env);
     let stable_coin = Address::generate(&env);
 
-    let (user_registry_address, _) = deploy_user_registry(&env, &super_admin);
-    let (campaign_management_address, campaign_management) = deploy_campaign_management(&env, &user_registry_address);
+    let (registry_address, _) = deploy_registry(&env, &super_admin);
+    let (campaign_management_address, campaign_management) = deploy_campaign_management(&env, &registry_address);
 
     // set stable coin address
     campaign_management.set_stable_coin_address(&stable_coin);
@@ -126,20 +126,20 @@ fn test_valid_create_campaign_flow() {
     let recipient = Address::generate(&env);
     let creator = Address::generate(&env);
 
-    let (user_registry_address, user_registry) = deploy_user_registry(&env, &super_admin);
+    let (registry_address, registry) = deploy_registry(&env, &super_admin);
 
     // request merchant registration
     let proprietor = String::from_str(&env, "Ram");
     let phone_no = String::from_str(&env, "+977-9841123321");
     let store_name = String::from_str(&env, "Medical");
     let location = String::from_str(&env, "Chhauni, Kathmandu");
-    user_registry.merchant_registration(&merchant, &proprietor, &phone_no, &store_name, &location);
+    registry.merchant_registration(&merchant, &proprietor, &phone_no, &store_name, &location);
     // verify merchant
-    user_registry.verify_merchant(&merchant);
+    registry.verify_merchant(&merchant);
 
-    assert_eq!(user_registry.get_super_admin(), super_admin);
+    assert_eq!(registry.get_super_admin(), super_admin);
 
-    assert_eq!(user_registry.get_verified_merchants(), vec![&env, merchant.clone()]);
+    assert_eq!(registry.get_verified_merchants(), vec![&env, merchant.clone()]);
 
     // deploy issuance management
     let wasm_hash = env.deployer().upload_contract_wasm(issuance_management::WASM);
@@ -157,20 +157,20 @@ fn test_valid_create_campaign_flow() {
     assert_eq!(stablecoin_client.balance(&creator), 100);
 
     // initialize issuance management
-    issuance_management.initialize(&user_registry_address);
+    issuance_management.initialize(&registry_address);
 
-    let (campaign_management_address, campaign_management) = deploy_campaign_management(&env, &user_registry_address);
+    let (campaign_management_address, campaign_management) = deploy_campaign_management(&env, &registry_address);
 
     // set campaign management in issuance
     issuance_management.set_campaign_management(&campaign_management_address);
 
     // set campaign management in user registry
-    user_registry.set_campaign_management(&campaign_management_address);
-    assert_eq!(user_registry.get_campaign_management(), campaign_management_address);
+    registry.set_campaign_management(&campaign_management_address);
+    assert_eq!(registry.get_campaign_management(), campaign_management_address);
 
     // set issuance management in user registry
-    user_registry.set_issuance_management(&issuance_management_address);
-    assert_eq!(user_registry.get_issuance_management(), issuance_management_address);
+    registry.set_issuance_management(&issuance_management_address);
+    assert_eq!(registry.get_issuance_management(), issuance_management_address);
 
     // set stable coin address
     campaign_management.set_stable_coin_address(&stablecoin_address);
@@ -186,7 +186,7 @@ fn test_valid_create_campaign_flow() {
     let no_of_recipients:u32 = 1; 
     let amount:i128 = 10;
 
-    let token_list = user_registry.get_available_tokens();
+    let token_list = registry.get_available_tokens();
     let token_address = token_list.first_unchecked();
 
     campaign_management.create_campaign(&name, &description, &no_of_recipients, &token_address, &amount, &creator);
@@ -241,31 +241,31 @@ fn test_valid_create_campaign_flow() {
     // assert merchant balance after it receives token from recipient
     assert_eq!(token_client.balance(&merchant), amount);
 
-    // assert total supply of token before settelment
+    // assert total supply of token before settlement
     assert_eq!(token_client.total_supply(), amount);
 
-    // assert stable coin balance of super admin before settelment of a campaign
+    // assert stable coin balance of super admin before settlement of a campaign
     assert_eq!(campaign_management.get_balance_of_stable_coin(&super_admin), 0);
 
-    // now mwechant requests for settelment
-    campaign_management.request_campaign_settelment(&merchant, &amount, &token_address);
+    // now mwechant requests for settlement
+    campaign_management.request_campaign_settlement(&merchant, &amount, &token_address);
 
-    // assert merchant balance after settelment
+    // assert merchant balance after settlement
     assert_eq!(token_client.balance(&merchant), 0);
 
-    // asert total supply of token after settelment
+    // asert total supply of token after settlement
     assert_eq!(token_client.total_supply(), 0);
 
-    // assert stable coin balance of campaign management after settelment of a campaign
+    // assert stable coin balance of campaign management after settlement of a campaign
     assert_eq!(campaign_management.get_balance_of_stable_coin(&campaign_management_address), 0);
 
-    // assert stable coin balance of super admin before settelment of a campaign
+    // assert stable coin balance of super admin before settlement of a campaign
     assert_eq!(campaign_management.get_balance_of_stable_coin(&super_admin), amount);
 }
 
 #[test]
 #[should_panic(expected = "Invalid token passed in param.")]
-fn test_request_settelment_of_invalid_token() {
+fn test_request_settlement_of_invalid_token() {
     let env = Env::default();
     env.mock_all_auths();
 
@@ -274,16 +274,16 @@ fn test_request_settelment_of_invalid_token() {
     let token_address = Address::generate(&env);
     let amount:i128 = 10;
 
-    let (user_registry_address, _) = deploy_user_registry(&env, &super_admin);
-    let (_, campaign_management) = deploy_campaign_management(&env, &user_registry_address);
+    let (registry_address, _) = deploy_registry(&env, &super_admin);
+    let (_, campaign_management) = deploy_campaign_management(&env, &registry_address);
 
-    // requests for settelment with invalid token
-    campaign_management.request_campaign_settelment(&merchant, &amount, &token_address);
+    // requests for settlement with invalid token
+    campaign_management.request_campaign_settlement(&merchant, &amount, &token_address);
 }
 
 #[test]
 #[should_panic(expected = "Amount cannot be equal or less than zero.")]
-fn test_request_settelment_of_0_token_amount() {
+fn test_request_settlement_of_0_token_amount() {
     let env = Env::default();
     env.mock_all_auths();
 
@@ -292,16 +292,16 @@ fn test_request_settelment_of_0_token_amount() {
     let token_address = Address::generate(&env);
     let amount:i128 = 0;
 
-    let (user_registry_address, _) = deploy_user_registry(&env, &super_admin);
-    let (_, campaign_management) = deploy_campaign_management(&env, &user_registry_address);
+    let (registry_address, _) = deploy_registry(&env, &super_admin);
+    let (_, campaign_management) = deploy_campaign_management(&env, &registry_address);
 
-    // requests for settelment with invalid token
-    campaign_management.request_campaign_settelment(&merchant, &amount, &token_address);
+    // requests for settlement with invalid token
+    campaign_management.request_campaign_settlement(&merchant, &amount, &token_address);
 }
 
 #[test]
 #[should_panic(expected = "Amount cannot be equal or less than zero.")]
-fn test_request_settelment_of_negative_token_amount() {
+fn test_request_settlement_of_negative_token_amount() {
     let env = Env::default();
     env.mock_all_auths();
 
@@ -310,16 +310,16 @@ fn test_request_settelment_of_negative_token_amount() {
     let token_address = Address::generate(&env);
     let amount:i128 = -10;
 
-    let (user_registry_address, _) = deploy_user_registry(&env, &super_admin);
-    let (_, campaign_management) = deploy_campaign_management(&env, &user_registry_address);
+    let (registry_address, _) = deploy_registry(&env, &super_admin);
+    let (_, campaign_management) = deploy_campaign_management(&env, &registry_address);
 
-    // requests for settelment with invalid token
-    campaign_management.request_campaign_settelment(&merchant, &amount, &token_address);
+    // requests for settlement with invalid token
+    campaign_management.request_campaign_settlement(&merchant, &amount, &token_address);
 }
 
 #[test]
-#[should_panic(expected = "Insufficient token for settelment.")]
-fn test_request_settelment_for_insufficient_amount() {
+#[should_panic(expected = "Insufficient token for settlement.")]
+fn test_request_settlement_for_insufficient_amount() {
     let env = Env::default();
     env.mock_all_auths();
     // this test costs more budget than the default allocated so need to set to unlimited
@@ -330,20 +330,20 @@ fn test_request_settelment_for_insufficient_amount() {
     let amount:i128 = 10;
     let creator = Address::generate(&env);
 
-    let (user_registry_address, user_registry) = deploy_user_registry(&env, &super_admin);
+    let (registry_address, registry) = deploy_registry(&env, &super_admin);
     
     // request merchant registration
     let proprietor = String::from_str(&env, "Ram");
     let phone_no = String::from_str(&env, "+977-9841123321");
     let store_name = String::from_str(&env, "Medical");
     let location = String::from_str(&env, "Chhauni, Kathmandu");
-    user_registry.merchant_registration(&merchant, &proprietor, &phone_no, &store_name, &location);
+    registry.merchant_registration(&merchant, &proprietor, &phone_no, &store_name, &location);
     // verify merchant
-    user_registry.verify_merchant(&merchant);
+    registry.verify_merchant(&merchant);
 
-    assert_eq!(user_registry.get_super_admin(), super_admin);
+    assert_eq!(registry.get_super_admin(), super_admin);
 
-    assert_eq!(user_registry.get_verified_merchants(), vec![&env, merchant.clone()]);
+    assert_eq!(registry.get_verified_merchants(), vec![&env, merchant.clone()]);
 
     // deploy issuance management
     let wasm_hash = env.deployer().upload_contract_wasm(issuance_management::WASM);
@@ -361,20 +361,20 @@ fn test_request_settelment_for_insufficient_amount() {
     assert_eq!(stablecoin_client.balance(&creator), 100);
 
     // initialize issuance management
-    issuance_management.initialize(&user_registry_address);
+    issuance_management.initialize(&registry_address);
 
-    let (campaign_management_address, campaign_management) = deploy_campaign_management(&env, &user_registry_address);
+    let (campaign_management_address, campaign_management) = deploy_campaign_management(&env, &registry_address);
 
     // set campaign management in issuance
     issuance_management.set_campaign_management(&campaign_management_address);
 
     // set campaign management in user registry
-    user_registry.set_campaign_management(&campaign_management_address);
-    assert_eq!(user_registry.get_campaign_management(), campaign_management_address);
+    registry.set_campaign_management(&campaign_management_address);
+    assert_eq!(registry.get_campaign_management(), campaign_management_address);
 
     // set issuance management in user registry
-    user_registry.set_issuance_management(&issuance_management_address);
-    assert_eq!(user_registry.get_issuance_management(), issuance_management_address);
+    registry.set_issuance_management(&issuance_management_address);
+    assert_eq!(registry.get_issuance_management(), issuance_management_address);
 
     // set stable coin address
     campaign_management.set_stable_coin_address(&stablecoin_address);
@@ -384,9 +384,9 @@ fn test_request_settelment_for_insufficient_amount() {
     issuance_management.issue_new_token(&7, &String::from_str(&env, "Token1"), &String::from_str(&env, "TKN1"),
     &items_associated,  &merchants_associated);
 
-    let token_list = user_registry.get_available_tokens();
+    let token_list = registry.get_available_tokens();
     let token_address = token_list.first_unchecked();
 
-    // requests for settelment with invalid token
-    campaign_management.request_campaign_settelment(&merchant, &amount, &token_address);
+    // requests for settlement with invalid token
+    campaign_management.request_campaign_settlement(&merchant, &amount, &token_address);
 }

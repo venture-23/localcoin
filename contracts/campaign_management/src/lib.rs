@@ -16,10 +16,10 @@ mod localcoin {
     );
 }
 
-mod user_registry {
+mod registry {
     soroban_sdk::contractimport!(
         file =
-            "../user_registry/target/wasm32-unknown-unknown/release/user_registry.wasm"
+            "../registry/target/wasm32-unknown-unknown/release/registry.wasm"
     );
 }
 
@@ -35,7 +35,7 @@ pub struct CampaignDetail {
 #[derive(Clone)]
 #[contracttype]
 pub enum DataKeys {
-    UserRegistry,
+    Registry,
     StableCoin,
     Campaigns,
     SaltCounter,
@@ -49,19 +49,19 @@ pub struct CampaignManagement;
 #[contractimpl]
 impl CampaignManagement {
     // initialize contract
-    pub fn initialize(env:Env, user_registry:Address) {
-        if Self::has_user_registry(env.clone()) {
+    pub fn initialize(env:Env, registry:Address) {
+        if Self::has_registry(env.clone()) {
             panic!("Contract already initialized.")
         }
-        let key = DataKeys::UserRegistry;
-        env.storage().instance().set(&key, &user_registry)
+        let key = DataKeys::Registry;
+        env.storage().instance().set(&key, &registry)
     }
 
-    pub fn set_user_registry(env:Env, address:Address) {
+    pub fn set_registry(env:Env, address:Address) {
         let super_admin = Self::get_super_admin(env.clone());
         super_admin.require_auth();
         
-        let key = DataKeys::UserRegistry;
+        let key = DataKeys::Registry;
         env.storage().instance().set(&key, &address)
     }
 
@@ -78,10 +78,10 @@ impl CampaignManagement {
 
             creator.require_auth();
 
-            let user_registry_addr = Self::get_user_registry(env.clone());
-            let user_registry_client = user_registry::Client::new(&env, &user_registry_addr);
+            let registry_addr = Self::get_registry(env.clone());
+            let registry_client = registry::Client::new(&env, &registry_addr);
 
-            let valid_tokens = user_registry_client.get_available_tokens();
+            let valid_tokens = registry_client.get_available_tokens();
             if !(valid_tokens.contains(token_address.clone())) {
                 panic!("Invalid token passed in param.")
             }
@@ -112,8 +112,8 @@ impl CampaignManagement {
             let token_client = localcoin::Client::new(&env, &token_address);
             token_client.mint(&campaign_contract_addr, &amount);
 
-            // set campaign admin in user_registry contract
-            user_registry_client.set_campaign_admin(&campaign_contract_addr, &creator);
+            // set campaign admin in registry contract
+            registry_client.set_campaign_admin(&campaign_contract_addr, &creator);
             
             // store all campaign
             let campaign_key = DataKeys::Campaigns;
@@ -148,22 +148,22 @@ impl CampaignManagement {
             env.events().publish((creator, campaign_value), "Campaign created.");
     }
 
-    pub fn request_campaign_settelment(env:Env, from:Address, amount:i128, token_address:Address) {
+    pub fn request_campaign_settlement(env:Env, from:Address, amount:i128, token_address:Address) {
         // transaction should be sent from 'from' addesss
         from.require_auth();
 
         if amount <= 0 {
             panic!("Amount cannot be equal or less than zero.")
         }
-        let user_registry = Self::get_user_registry(env.clone());
-        let user_registry_client = user_registry::Client::new(&env, &user_registry);
+        let registry_address = Self::get_registry(env.clone());
+        let registry_client = registry::Client::new(&env, &registry_address);
 
-        let valid_tokens = user_registry_client.get_available_tokens();
+        let valid_tokens = registry_client.get_available_tokens();
         if !(valid_tokens.contains(token_address.clone())) {
             panic!("Invalid token passed in param.")
         }
 
-        let merchants = user_registry_client.get_verified_merchants();
+        let merchants = registry_client.get_verified_merchants();
         if !(merchants.contains(&from)) {
             panic!("Caller not merchant.")
         }
@@ -172,7 +172,7 @@ impl CampaignManagement {
         // verify balance of merchant
         let balance = token_client.balance(&from);
         if !(balance >= amount) {
-            panic!("Insufficient token for settelment.")
+            panic!("Insufficient token for settlement.")
         }
 
         // campaign_management burns the token from merchant 'from'
@@ -186,12 +186,12 @@ impl CampaignManagement {
 
         let stable_coin_balance = stable_coin_client.balance(&current_contract_address);
         if !(stable_coin_balance >= amount) {
-            panic!("Insufficient stable coin in camapign management for settelment.")
+            panic!("Insufficient stable coin in camapign management for settlement.")
         }
         // transfer stable coin to super admin
         stable_coin_client.transfer(&current_contract_address, &super_admin, &amount);
         // emit event
-        env.events().publish((from, amount, token_address), "Settelment requested.");
+        env.events().publish((from, amount, token_address), "Settlement requested.");
     }
 
     pub fn get_campaigns(env:Env) -> Vec<Address> {
@@ -221,10 +221,10 @@ impl CampaignManagement {
         }
     }
 
-    pub fn get_user_registry(env:Env) -> Address {
-        let key = DataKeys::UserRegistry;
-        if let Some(user_registry_addr) = env.storage().instance().get::<DataKeys, Address>(&key) {
-            user_registry_addr
+    pub fn get_registry(env:Env) -> Address {
+        let key = DataKeys::Registry;
+        if let Some(registry_addr) = env.storage().instance().get::<DataKeys, Address>(&key) {
+            registry_addr
         } else {
             panic!("Address not set.")
         }
@@ -247,13 +247,13 @@ impl CampaignManagement {
     }
     
     pub fn get_super_admin(env:Env) -> Address {
-        let user_registry_addr = Self::get_user_registry(env.clone());
-        let client = user_registry::Client::new(&env, &user_registry_addr);
+        let registry_addr = Self::get_registry(env.clone());
+        let client = registry::Client::new(&env, &registry_addr);
         client.get_super_admin()
     }
 
-    pub fn has_user_registry(env:Env) -> bool {
-        let key = DataKeys::UserRegistry;
+    pub fn has_registry(env:Env) -> bool {
+        let key = DataKeys::Registry;
         env.storage().instance().has(&key)
     }
 }

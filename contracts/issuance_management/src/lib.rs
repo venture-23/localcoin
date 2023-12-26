@@ -9,17 +9,17 @@ mod localcoin {
     );
 }
 
-mod user_registry {
+mod registry {
     soroban_sdk::contractimport!(
         file =
-            "../user_registry/target/wasm32-unknown-unknown/release/user_registry.wasm"
+            "../registry/target/wasm32-unknown-unknown/release/registry.wasm"
     );
 }
 
 #[derive(Clone)]
 #[contracttype]
 pub enum DataKeys{
-    UserRegistry,
+    Registry,
     SaltCounter,
     CampaignManagement,
     ItemsAssociated(Address),
@@ -33,19 +33,19 @@ pub struct IssuanceManagement;
 #[contractimpl]
 impl IssuanceManagement {
     // initialize contract
-    pub fn initialize(env:Env, user_registry:Address) {
-        if Self::has_user_registry(env.clone()) {
+    pub fn initialize(env:Env, registry:Address) {
+        if Self::has_registry(env.clone()) {
             panic!("Contract already initialized.")
         }
-        let key = DataKeys::UserRegistry;
-        env.storage().instance().set(&key, &user_registry)
+        let key = DataKeys::Registry;
+        env.storage().instance().set(&key, &registry)
     }
 
-    pub fn set_user_registry(env:Env, address:Address) {
+    pub fn set_registry(env:Env, address:Address) {
         let super_admin = Self::get_super_admin(env.clone());
         super_admin.require_auth();
         
-        let key = DataKeys::UserRegistry;
+        let key = DataKeys::Registry;
         env.storage().instance().set(&key, &address)
     }
 
@@ -69,10 +69,10 @@ impl IssuanceManagement {
             }
 
             let campaign_management_addr = Self::get_campaign_management(env.clone());
-            let user_registry_addr = Self::get_user_registry(env.clone());
-            let user_registry_client = user_registry::Client::new(&env, &user_registry_addr);
+            let registry_addr = Self::get_registry(env.clone());
+            let registry_client = registry::Client::new(&env, &registry_addr);
 
-            let verified_merchants = user_registry_client.get_verified_merchants();
+            let verified_merchants = registry_client.get_verified_merchants();
             for merchant in merchants.iter() {
                 if !(verified_merchants.contains(merchant)) {
                     panic!("Merchants list contains unverified merchant.")
@@ -111,8 +111,8 @@ impl IssuanceManagement {
             existing_token_name_addr.set(symbol.clone(), deployed_token.clone());
             env.storage().instance().set(&token_addr_key, &existing_token_name_addr);
 
-            //  send deployed tokens to user_registry contract
-            user_registry_client.add_deployed_tokens(&deployed_token);
+            //  send deployed tokens to registry contract
+            registry_client.add_deployed_tokens(&deployed_token);
 
             // emit event
             env.events().publish((deployed_token, (name, symbol, decimal), (items, merchants)), "New token issued.");
@@ -128,7 +128,7 @@ impl IssuanceManagement {
             panic!("Token doesn't exist.")
         }
 
-        let existig_items = Self::get_items_assocoated(env.clone(), token_address.clone());
+        let existig_items = Self::get_items_associated(env.clone(), token_address.clone());
         for item in items.iter() {
             if existig_items.contains(item) {
                 panic!("Item provided already exist.")
@@ -151,7 +151,15 @@ impl IssuanceManagement {
             panic!("Token doesn't exist.")
         }
 
-        let existig_merchants = Self::get_merchants_assocoated(env.clone(), token_address.clone());
+        let registry_addr = Self::get_registry(env.clone());
+        let registry_client = registry::Client::new(&env, &registry_addr);
+        let verified_merchants = registry_client.get_verified_merchants();
+        for merchant in merchants.iter() {
+            if !(verified_merchants.contains(merchant)) {
+                panic!("Merchants list contains unverified merchant.")
+            }
+        }
+        let existig_merchants = Self::get_merchants_associated(env.clone(), token_address.clone());
         for merchant in merchants.iter() {
             if existig_merchants.contains(merchant) {
                 panic!("Merchant provided already exist.")
@@ -163,27 +171,27 @@ impl IssuanceManagement {
         env.events().publish((token_address, merchants), "Token's merchants list updated.");
     }
 
-    pub fn get_balance_of_batch(env:Env, user:Address) -> Map<String, i128> {
-        let user_registry_addr = Self::get_user_registry(env.clone());
-        let user_registry_client = user_registry::Client::new(&env, &user_registry_addr);
-        let tokens =  user_registry_client.get_available_tokens();
+    pub fn get_balance_of_batch(env:Env, user:Address) -> Map<String, (i128, Address)> {
+        let registry_addr = Self::get_registry(env.clone());
+        let registry_client = registry::Client::new(&env, &registry_addr);
+        let tokens =  registry_client.get_available_tokens();
         
-        let mut tokens_balance: Map<String, i128> = Map::new(&env);
+        let mut tokens_balance: Map<String, (i128, Address)> = Map::new(&env);
         for token in tokens.iter() {
             let token_client = localcoin::Client::new(&env, &token);
             let balance = token_client.balance(&user);
             let name = token_client.name();
             if balance > 0 {
-                tokens_balance.set(name, balance);
+                tokens_balance.set(name, (balance, token));
             }
         }
         tokens_balance
     }
 
-    pub fn get_user_registry(env:Env) -> Address {
-        let key = DataKeys::UserRegistry;
-        if let Some(user_registry_addr) = env.storage().instance().get::<DataKeys, Address>(&key) {
-            user_registry_addr
+    pub fn get_registry(env:Env) -> Address {
+        let key = DataKeys::Registry;
+        if let Some(registry_addr) = env.storage().instance().get::<DataKeys, Address>(&key) {
+            registry_addr
         } else {
             panic!("Address not set.")
         }
@@ -199,12 +207,12 @@ impl IssuanceManagement {
     }
 
     pub fn get_super_admin(env:Env) -> Address {
-        let user_registry_addr = Self::get_user_registry(env.clone());
-        let user_registry_client = user_registry::Client::new(&env, &user_registry_addr);
-        user_registry_client.get_super_admin()
+        let registry_addr = Self::get_registry(env.clone());
+        let registry_client = registry::Client::new(&env, &registry_addr);
+        registry_client.get_super_admin()
     }
 
-    pub fn get_merchants_assocoated(env:Env, token_address:Address) -> Vec<Address> {
+    pub fn get_merchants_associated(env:Env, token_address:Address) -> Vec<Address> {
         let key = DataKeys::MerchantsAssociated(token_address);
         if let Some(merchants) = env.storage().instance().get::<DataKeys, Vec<Address>>(&key) {
             merchants
@@ -213,7 +221,7 @@ impl IssuanceManagement {
         }
     }
 
-    pub fn get_items_assocoated(env:Env, token_address:Address) -> Vec<String> {
+    pub fn get_items_associated(env:Env, token_address:Address) -> Vec<String> {
         let key = DataKeys::ItemsAssociated(token_address);
         if let Some(items) = env.storage().instance().get::<DataKeys, Vec<String>>(&key) {
             items
@@ -231,8 +239,8 @@ impl IssuanceManagement {
         }
     }
 
-    pub fn has_user_registry(e:Env) -> bool {
-        let key = DataKeys::UserRegistry;
+    pub fn has_registry(e:Env) -> bool {
+        let key = DataKeys::Registry;
         e.storage().instance().has(&key)
     }
 }
