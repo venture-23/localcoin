@@ -78,6 +78,9 @@ impl CampaignManagement {
 
             creator.require_auth();
 
+            if amount <= 0 {
+                panic!("Amount cannot be equal or less than zero.")
+            }
             let registry_addr = Self::get_registry(env.clone());
             let registry_client = registry::Client::new(&env, &registry_addr);
 
