@@ -88,6 +88,11 @@ impl Regisrty {
             panic!("No registration request from the merchant.")
         }
 
+        let verified_merchant_list = Self::get_verified_merchants(env.clone());
+        if !(verified_merchant_list.contains(merchant_addr.clone())) {
+            panic!("Merchant not verified. Please first verify to update info.")
+        }
+
         let merchant_info: Map<String, Val> = map![
             &env,
             (String::from_str(&env, "verified_status"), verify_status.into()),
