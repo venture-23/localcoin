@@ -57,6 +57,22 @@ impl CampaignManagement {
         env.storage().instance().set(&key, &registry)
     }
 
+    // call in case you want to upgrade contract
+    pub fn upgrade(env:Env, new_wasm_hash:BytesN<32>) {
+        let super_admin = Self::get_super_admin(env.clone());
+        super_admin.require_auth();
+
+        env.deployer().update_current_contract_wasm(new_wasm_hash);
+    }
+
+    pub fn upgrade_localcoin(env:Env, token_address:Address, localcoin_new_wasm_hash:BytesN<32>) {
+        let super_admin = Self::get_super_admin(env.clone());
+        super_admin.require_auth();
+
+        let token_client = localcoin::Client::new(&env, &token_address);
+        token_client.upgrade(&localcoin_new_wasm_hash);
+    }
+
     pub fn set_registry(env:Env, address:Address) {
         let super_admin = Self::get_super_admin(env.clone());
         super_admin.require_auth();
