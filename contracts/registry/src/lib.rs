@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, Address, String, Env, Vec, Val, Map, vec, map};
+use soroban_sdk::{contract, contractimpl, contracttype, Address, String, Env, Vec, Val, Map, BytesN,  vec, map};
 
 mod test;
 
@@ -28,6 +28,14 @@ impl Regisrty {
         }
         let key = DataKeys::SuperAdmin;
         env.storage().instance().set(&key, &super_admin)
+    }
+
+    // this function is called to upgrade the contract
+    pub fn upgrade(env:Env, new_wasm_hash:BytesN<32>) {
+        let super_admin = Self::get_super_admin(env.clone());
+        super_admin.require_auth();
+
+        env.deployer().update_current_contract_wasm(new_wasm_hash);
     }
 
     pub fn set_campaign_management(env:Env, campaign_management:Address) {
