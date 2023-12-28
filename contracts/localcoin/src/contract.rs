@@ -3,7 +3,7 @@ use crate::admin::{has_administrator, read_administrator, write_administrator, h
 use crate::balance::{read_balance, receive_balance, spend_balance, read_total_supply, read_token_burnt, update_mint_supply, update_burn_supply};
 use crate::metadata::{read_decimal, read_name, read_symbol, write_metadata};
 use crate::storage_types::{INSTANCE_BUMP_AMOUNT, INSTANCE_LIFETIME_THRESHOLD};
-use soroban_sdk::{contract, contractimpl, Address, Env, String};
+use soroban_sdk::{contract, contractimpl, Address, Env, String, BytesN};
 use soroban_token_sdk::metadata::TokenMetadata;
 use soroban_token_sdk::TokenUtils;
 
@@ -42,6 +42,14 @@ impl LocalCoin {
                 symbol,
             },
         )
+    }
+
+    // call in case you want to upgrade contract
+    pub fn upgrade(e:Env, new_wasm_hash:BytesN<32>) {
+        let admin = read_administrator(&e);
+        admin.require_auth();
+
+        e.deployer().update_current_contract_wasm(new_wasm_hash);
     }
 
     pub fn mint(e: Env, to: Address, amount: i128) {
