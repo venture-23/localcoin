@@ -41,6 +41,14 @@ impl IssuanceManagement {
         env.storage().instance().set(&key, &registry)
     }
 
+    // call in case you want to upgrade contract
+    pub fn upgrade(env:Env, new_wasm_hash:BytesN<32>) {
+        let super_admin = Self::get_super_admin(env.clone());
+        super_admin.require_auth();
+
+        env.deployer().update_current_contract_wasm(new_wasm_hash);
+    }
+
     pub fn set_registry(env:Env, address:Address) {
         let super_admin = Self::get_super_admin(env.clone());
         super_admin.require_auth();
@@ -180,9 +188,9 @@ impl IssuanceManagement {
         for token in tokens.iter() {
             let token_client = localcoin::Client::new(&env, &token);
             let balance = token_client.balance(&user);
-            let name = token_client.name();
+            let symbol = token_client.symbol();
             if balance > 0 {
-                tokens_balance.set(name, (balance, token));
+                tokens_balance.set(symbol, (balance, token));
             }
         }
         tokens_balance
