@@ -113,7 +113,6 @@ impl LocalCoin {
     pub fn recipient_to_merchant_transfer(e: Env, from: Address, to: Address, amount: i128) {
         // this function is called by recepient while transfering tokens to merchants
         // this checks if the token that the sender is sending has the merchant(receiver) associated with that token.
-        from.require_auth();
 
         let current_contract = e.current_contract_address();
         let issuance_addr = Self::get_issuance_management(e.clone());
