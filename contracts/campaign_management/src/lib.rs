@@ -91,11 +91,10 @@ impl CampaignManagement {
 
     pub fn create_campaign(env:Env, name:String, description:String, no_of_recipients:u32,
          token_address:Address, amount:i128, creator: Address) {
-
             creator.require_auth();
 
-            if amount <= 0 {
-                panic!("Amount cannot be equal or less than zero.")
+            if amount < (100_i128 * 10_i128.pow(7)) {
+                panic!("Amount cannot be less than 100 USDC.")
             }
             let registry_addr = Self::get_registry(env.clone());
             let registry_client = registry::Client::new(&env, &registry_addr);
@@ -125,7 +124,8 @@ impl CampaignManagement {
 
             // call set_campaign_info on camapign contract through client
             let campaign_client = campaign_contract::Client::new(&env, &campaign_contract_addr);
-            campaign_client.set_campaign_info(&name, &description, &no_of_recipients, &token_address, &creator); 
+            campaign_client.set_campaign_info(&name, &description, &no_of_recipients, &token_address, 
+                &creator, &env.current_contract_address()); 
 
             // mint stable coin equivalent tokens to campaign contract
             let token_client = localcoin::Client::new(&env, &token_address);
@@ -211,6 +211,41 @@ impl CampaignManagement {
         stable_coin_client.transfer(&current_contract_address, &super_admin, &amount);
         // emit event
         env.events().publish((from, amount, token_address), "Settlement requested.");
+    }
+
+    pub fn end_campaign(env:Env, campaign_id:Address, owner:Address) {
+        owner.require_auth();
+
+        let registry_addr = Self::get_registry(env.clone());
+        let registry_client = registry::Client::new(&env, &registry_addr);
+        let campaign_admin = registry_client.get_campaign_admin(&campaign_id);
+
+        if campaign_admin != owner {
+            panic!("You are not a owner of the given campaign.")
+        }
+
+        let campaign_client = campaign_contract::Client::new(&env, &campaign_id);
+        let campaign_end_status = campaign_client.is_ended();
+        if campaign_end_status == true {
+            panic!("Campaign already ended.")
+        }
+
+        let remaining_localcoin_balance = campaign_client.get_campaign_balance();
+        let token_addr = campaign_client.get_token_address();
+        let token_client = localcoin::Client::new(&env, &token_addr);
+
+        if remaining_localcoin_balance > 0 {
+            // burn remaining tokens from campaign contract
+            token_client.burn(&campaign_id, &remaining_localcoin_balance);
+
+            let stable_coin_addr = Self::get_stable_coin(env.clone());
+            let stable_coin_client = token::Client::new(&env, &stable_coin_addr);
+            let current_contract_address = env.current_contract_address();
+
+            // transfer equivalent stable coin to campaign owner
+            stable_coin_client.transfer(&current_contract_address, &owner, &remaining_localcoin_balance);
+        }
+        campaign_client.set_campaign_end_status(&true);
     }
 
     pub fn get_campaigns(env:Env) -> Vec<Address> {
