@@ -216,6 +216,11 @@ impl CampaignManagement {
     pub fn end_campaign(env:Env, campaign_id:Address, owner:Address) {
         owner.require_auth();
 
+        let campaigns =  Self::get_campaigns(env.clone());
+        if !(campaigns.contains(campaign_id.clone())) {
+            panic!("Campaign id not found in campaigns list.")
+        }
+
         let registry_addr = Self::get_registry(env.clone());
         let registry_client = registry::Client::new(&env, &registry_addr);
         let campaign_admin = registry_client.get_campaign_admin(&campaign_id);

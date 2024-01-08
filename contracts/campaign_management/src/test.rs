@@ -445,6 +445,78 @@ fn test_request_settlement_for_insufficient_amount() {
 }
 
 #[test]
+#[should_panic(expected = "Campaign id not found in campaigns list.")]
+fn test_end_invalid_campaign() {
+    let env = Env::default();
+    env.mock_all_auths();
+    // this test costs more budget than the default allocated so need to set to unlimited
+    env.budget().reset_unlimited();
+
+    let super_admin = Address::generate(&env);
+    let merchant = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let invalid_campaign = Address::generate(&env);
+
+    let (registry_address, registry) = deploy_registry(&env, &super_admin);
+
+    // request merchant registration
+    let proprietor = String::from_str(&env, "Ram");
+    let phone_no = String::from_str(&env, "+977-9841123321");
+    let store_name = String::from_str(&env, "Medical");
+    let location = String::from_str(&env, "Chhauni, Kathmandu");
+    registry.merchant_registration(&merchant, &proprietor, &phone_no, &store_name, &location);
+    // verify merchant
+    registry.verify_merchant(&merchant);
+
+    // deploy issuance management
+    let wasm_hash = env.deployer().upload_contract_wasm(issuance_management::WASM);
+    let salt = BytesN::from_array(&env, &[1; 32]);
+    let issuance_management_address = env.deployer().with_address(super_admin.clone(), salt).deploy(wasm_hash);
+    let issuance_management = issuance_management::Client::new(&env, &issuance_management_address);
+
+    let wasm_hash = env.deployer().upload_contract_wasm(localcoin::WASM);
+    let salt = BytesN::from_array(&env, &[2; 32]);
+    // for test we have deployed localcoin as stable coin
+    let stablecoin_address = env.deployer().with_address(super_admin.clone(), salt).deploy(wasm_hash);
+    let stablecoin_client = localcoin::Client::new(&env, &stablecoin_address);
+    stablecoin_client.initialize(&super_admin, &7, &String::from_str(&env, "USDC Coin"), &String::from_str(&env, "USDC"));
+    stablecoin_client.mint(&creator, &(1000 * 10_i128.pow(7)));
+
+    // initialize issuance management
+    issuance_management.initialize(&registry_address);
+
+    let (campaign_management_address, campaign_management) = deploy_campaign_management(&env, &registry_address);
+
+    // set campaign management in issuance
+    issuance_management.set_campaign_management(&campaign_management_address);
+
+    // set campaign management in user registry
+    registry.set_campaign_management(&campaign_management_address);
+    // set issuance management in user registry
+    registry.set_issuance_management(&issuance_management_address);
+
+    // set stable coin address
+    campaign_management.set_stable_coin_address(&stablecoin_address);
+
+    let items_associated = vec![&env, String::from_str(&env, "Medicine")];
+    let merchants_associated = vec![&env, merchant.clone()];
+    issuance_management.issue_new_token(&7, &String::from_str(&env, "Token1"), &String::from_str(&env, "TKN1"),
+    &items_associated,  &merchants_associated);
+
+    // create campaign
+    let name = String::from_str(&env, "Test campaign ");
+    let description = String::from_str(&env, "This is test camapaign");
+    let no_of_recipients:u32 = 1; 
+    let amount:i128 = 100 * 10_i128.pow(7);
+
+    let token_list = registry.get_available_tokens();
+    let token_address = token_list.first_unchecked();
+
+    campaign_management.create_campaign(&name, &description, &no_of_recipients, &token_address, &amount, &creator);
+    campaign_management.end_campaign(&invalid_campaign, &creator);
+}
+
+#[test]
 #[should_panic(expected = "You are not a owner of the given campaign.")]
 fn test_invalid_owner_end_campaign() {
     let env = Env::default();
