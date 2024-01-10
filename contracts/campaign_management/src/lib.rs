@@ -90,7 +90,7 @@ impl CampaignManagement {
     }
 
     pub fn create_campaign(env:Env, name:String, description:String, no_of_recipients:u32,
-         token_address:Address, amount:i128, creator: Address) {
+         token_address:Address, amount:i128, creator:Address, location:String) {
             creator.require_auth();
 
             if amount < (100_i128 * 10_i128.pow(7)) {
@@ -125,7 +125,7 @@ impl CampaignManagement {
             // call set_campaign_info on camapign contract through client
             let campaign_client = campaign_contract::Client::new(&env, &campaign_contract_addr);
             campaign_client.set_campaign_info(&name, &description, &no_of_recipients, &token_address, 
-                &creator, &env.current_contract_address()); 
+                &creator, &env.current_contract_address(), &location); 
 
             // mint stable coin equivalent tokens to campaign contract
             let token_client = localcoin::Client::new(&env, &token_address);
@@ -154,6 +154,7 @@ impl CampaignManagement {
             new_campaign_info.set(String::from_str(&env, "name"), name.to_val());
             new_campaign_info.set(String::from_str(&env, "description"), description.to_val());
             new_campaign_info.set(String::from_str(&env, "no_of_recipients"), no_of_recipients.into());
+            new_campaign_info.set(String::from_str(&env, "location"), location.to_val());
 
             let campaign_value = CampaignDetail {
                 campaign: campaign_contract_addr,
