@@ -4,7 +4,7 @@ use super::*;
 use crate::{registry, campaign_contract, localcoin, CampaignManagement, CampaignManagementClient};
 use crate::registry::Client;
 
-use soroban_sdk::{testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation}, Symbol, Address, Env, IntoVal};
+use soroban_sdk::{testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation}, Symbol, Address, Env, Val, IntoVal};
 
 mod issuance_management {
     soroban_sdk::contractimport!(
@@ -184,13 +184,14 @@ fn test_valid_create_campaign_flow() {
     let name = String::from_str(&env, "Test campaign ");
     let description = String::from_str(&env, "This is test camapaign");
     let no_of_recipients:u32 = 1; 
+    let location = String::from_str(&env, "Kathmandu");
     let amount:i128 = 100 * 10_i128.pow(7);
     let half_amount:i128 = 50 * 10_i128.pow(7);
 
     let token_list = registry.get_available_tokens();
     let token_address = token_list.first_unchecked();
 
-    campaign_management.create_campaign(&name, &description, &no_of_recipients, &token_address, &amount, &creator);
+    campaign_management.create_campaign(&name, &description, &no_of_recipients, &token_address, &amount, &creator, &location);
     
     // assert stable coin balance of creator after creating campaign
     // 100 balance is reduced as part of creating campaign
@@ -216,9 +217,12 @@ fn test_valid_create_campaign_flow() {
     campaign_info.set(String::from_str(&env, "name"), name.to_val());
     campaign_info.set(String::from_str(&env, "description"), description.to_val());
     campaign_info.set(String::from_str(&env, "no_of_recipients"), no_of_recipients.into());
+    campaign_info.set(String::from_str(&env, "amount"), amount.into_val(&env));
     campaign_info.set(String::from_str(&env, "token_address"), token_address.to_val());
     campaign_info.set(String::from_str(&env, "token_name"), String::from_str(&env, "Token1").to_val());
     campaign_info.set(String::from_str(&env, "creator"), creator.to_val());
+    campaign_info.set(String::from_str(&env, "location"), location.to_val());
+
     for campaign in campaigns.clone().into_iter() {
         let camapign_client = campaign_contract::Client::new(&env, &campaign);
         
@@ -236,9 +240,19 @@ fn test_valid_create_campaign_flow() {
 
         // now transfer token to recipient
         // only transfer half amount to recipient. Half amount is remaining in campaign.
+        // verify recipient first 
+        camapign_client.join_campaign(&String::from_str(&env, "Bob"), &recipient);
+        let usernames = vec![&env, String::from_str(&env, "Bob")];
+        camapign_client.verify_recipients(&usernames);
+
         camapign_client.transfer_tokens_to_recipient(&recipient, &half_amount);
 
         assert_eq!(camapign_client.get_campaign_balance(), half_amount);
+
+        // verify creators campaign
+        let mut creator_campaigns: Map<Address, String> = Map::new(&env);
+        creator_campaigns.set(campaign.clone(), name.clone());
+        assert_eq!(campaign_management.get_creator_campaigns(&creator), creator_campaigns);
 
         // campaign creator ends the campaign
         campaign_management.end_campaign(&campaign, &creator);
@@ -312,8 +326,9 @@ fn test_create_campaign_with_less_than_100_usdc() {
      let description = String::from_str(&env, "This is test camapaign");
      let no_of_recipients:u32 = 1; 
      let amount:i128 = 10 * 10_i128.pow(7);
+     let location = String::from_str(&env, "Kathmandu");
  
-     campaign_management.create_campaign(&name, &description, &no_of_recipients, &token_address, &amount, &creator);
+     campaign_management.create_campaign(&name, &description, &no_of_recipients, &token_address, &amount, &creator, &location);
 }
 
 #[test]
@@ -508,11 +523,12 @@ fn test_end_invalid_campaign() {
     let description = String::from_str(&env, "This is test camapaign");
     let no_of_recipients:u32 = 1; 
     let amount:i128 = 100 * 10_i128.pow(7);
+    let location = String::from_str(&env, "Kathmandu");
 
     let token_list = registry.get_available_tokens();
     let token_address = token_list.first_unchecked();
 
-    campaign_management.create_campaign(&name, &description, &no_of_recipients, &token_address, &amount, &creator);
+    campaign_management.create_campaign(&name, &description, &no_of_recipients, &token_address, &amount, &creator, &location);
     campaign_management.end_campaign(&invalid_campaign, &creator);
 }
 
@@ -580,11 +596,12 @@ fn test_invalid_owner_end_campaign() {
     let description = String::from_str(&env, "This is test camapaign");
     let no_of_recipients:u32 = 1; 
     let amount:i128 = 100 * 10_i128.pow(7);
+    let location = String::from_str(&env, "Kathmandu");
 
     let token_list = registry.get_available_tokens();
     let token_address = token_list.first_unchecked();
 
-    campaign_management.create_campaign(&name, &description, &no_of_recipients, &token_address, &amount, &creator);
+    campaign_management.create_campaign(&name, &description, &no_of_recipients, &token_address, &amount, &creator, &location);
     
     let campaigns = campaign_management.get_campaigns();
     for campaign in campaigns.clone().into_iter() {
@@ -660,13 +677,14 @@ fn test_double_end_campaign() {
     let description = String::from_str(&env, "This is test camapaign");
     let no_of_recipients:u32 = 1; 
     let amount:i128 = 100 * 10_i128.pow(7);
+    let location = String::from_str(&env, "Kathmandu");
 
     let token_list = registry.get_available_tokens();
     let token_address = token_list.first_unchecked();
 
     assert_eq!(stablecoin_client.balance(&creator), 1000 * 10_i128.pow(7));
 
-    campaign_management.create_campaign(&name, &description, &no_of_recipients, &token_address, &amount, &creator);
+    campaign_management.create_campaign(&name, &description, &no_of_recipients, &token_address, &amount, &creator, &location);
     
     assert_eq!(stablecoin_client.balance(&creator), 900 * 10_i128.pow(7));
 
@@ -750,13 +768,14 @@ fn test_end_campaign_with_balance_0() {
     let description = String::from_str(&env, "This is test camapaign");
     let no_of_recipients:u32 = 1; 
     let amount:i128 = 100 * 10_i128.pow(7);
+    let location = String::from_str(&env, "Kathmandu");
 
     let token_list = registry.get_available_tokens();
     let token_address = token_list.first_unchecked();
 
     assert_eq!(stablecoin_client.balance(&creator), 1000 * 10_i128.pow(7));
 
-    campaign_management.create_campaign(&name, &description, &no_of_recipients, &token_address, &amount, &creator);
+    campaign_management.create_campaign(&name, &description, &no_of_recipients, &token_address, &amount, &creator, &location);
     
     assert_eq!(stablecoin_client.balance(&creator), 900 * 10_i128.pow(7));
 
@@ -767,6 +786,11 @@ fn test_end_campaign_with_balance_0() {
         assert_eq!(camapign_client.is_ended(), false);
 
         assert_eq!(camapign_client.get_campaign_balance(), amount);
+
+        // verify recipient
+        camapign_client.join_campaign(&String::from_str(&env, "Bob"), &recipient);
+        let usernames = vec![&env, String::from_str(&env, "Bob")];
+        camapign_client.verify_recipients(&usernames);
 
         // now transfer all token to recipient
         camapign_client.transfer_tokens_to_recipient(&recipient, &amount);

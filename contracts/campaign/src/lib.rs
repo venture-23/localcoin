@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, Env, String, Address, Map, Val};
+use soroban_sdk::{contract, contractimpl, contracttype, Env, String, Address, Map, Val, Vec, IntoVal, vec, map};
 
 mod test;
 
@@ -20,6 +20,8 @@ pub enum DataKeys{
     TokenAddress,
     CampaignManagement,
     CampaignInfo,
+    RecipientsStatus,
+    VerifiedRecipientList,
     IsEnded,
     AmountReceived(Address)
 }
@@ -33,11 +35,10 @@ impl Campaign {
 
         let status_key = DataKeys::IsEnded;
         env.storage().instance().set(&status_key, &status);
-
     }
 
-    pub fn set_campaign_info(env:Env, name:String, description:String, no_of_recipients:u32, token_address:Address,
-         creator:Address, campaign_management:Address) {
+    pub fn set_campaign_info(env:Env, name:String, description:String, no_of_recipients:u32, amount:i128, token_address:Address,
+         creator:Address, campaign_management:Address, location:String) {
 
             // set_campaign_info is only called by campaign_mamagenent contract
             if Self::has_administrator(env.clone()) {
@@ -62,9 +63,11 @@ impl Campaign {
             campaign_info.set(String::from_str(&env, "name"), name.to_val());
             campaign_info.set(String::from_str(&env, "description"), description.to_val());
             campaign_info.set(String::from_str(&env, "no_of_recipients"), no_of_recipients.into());
+            campaign_info.set(String::from_str(&env, "amount"), amount.into_val(&env));
             campaign_info.set(String::from_str(&env, "token_address"), token_address.to_val());
             campaign_info.set(String::from_str(&env, "token_name"), token_name.to_val());
             campaign_info.set(String::from_str(&env, "creator"), creator.to_val());
+            campaign_info.set(String::from_str(&env, "location"), location.to_val());
 
             // set campaign info
             let campaign_key = DataKeys:: CampaignInfo;
@@ -78,6 +81,11 @@ impl Campaign {
         let owner = Self::get_owner(env.clone());
         owner.require_auth();
 
+        let verified_recipient_list = Self::get_verified_recipients(env.clone());
+        if !(verified_recipient_list.contains(to.clone())) {
+            panic!("Recipient not verified.")
+        }
+
         let amount_key = DataKeys::AmountReceived(to.clone());
         let previous_received = Self::get_amount_received(env.clone(), to.clone());
         env.storage().instance().set(&amount_key, &(previous_received + amount));
@@ -89,6 +97,72 @@ impl Campaign {
         token_client.transfer(&current_contract_addr, &to, &amount);
         // emit event
         env.events().publish((current_contract_addr, to, amount), "Token transferred to recipient.");
+    }
+
+    pub fn join_campaign(env:Env, username:String, recipient:Address) {
+        recipient.require_auth();
+
+        let key: DataKeys = DataKeys::RecipientsStatus;
+        let mut recipients_status = Self::get_recipients_status(env.clone());
+        
+        if recipients_status.contains_key(username.clone()) {
+            panic!("Campaign already joined.")
+        }
+        recipients_status.set(username.clone(), (false, recipient.clone()));
+        env.storage().instance().set(&key, &recipients_status);
+
+        env.events().publish((username, recipient), "Campaign joined.");
+    }
+
+    pub fn verify_recipients(env:Env, usernames:Vec<String>) {
+        let owner = Self::get_owner(env.clone());
+        owner.require_auth();
+
+        let key: DataKeys = DataKeys::RecipientsStatus;
+        let mut recipients_status = Self::get_recipients_status(env.clone());
+        let recipient_key =  DataKeys::VerifiedRecipientList;
+        let mut verified_recipient_list = Self::get_verified_recipients(env.clone());
+
+        for username in usernames.iter() {
+            if !(recipients_status.contains_key(username.clone())) {
+                panic!("Given list contains username that hasn't joined campaign.")
+            }
+            let (_, recipient) = recipients_status.get_unchecked(username.clone());            
+            if verified_recipient_list.contains(recipient.clone()) {
+                panic!("Given list contains already verified username.")
+            }
+            recipients_status.set(username, (true, recipient.clone()));
+            verified_recipient_list.push_back(recipient);
+        }
+        env.storage().instance().set(&key, &recipients_status);
+        env.storage().instance().set(&recipient_key, &verified_recipient_list);
+    }
+
+    pub fn recipient_limit_exceeded(env:Env) -> bool {
+        let verified_recipient_length = Self::get_verified_recipients(env.clone()).len();
+        let no_of_recipient = Self::get_campaign_info(env.clone()).get_unchecked(String::from_str(&env, "no_of_recipients")).into_val(&env);
+        if verified_recipient_length >= no_of_recipient {
+            return true
+        }
+        return false
+    }
+
+    pub fn get_recipients_status(env:Env) -> Map<String, (bool, Address)> {
+        let key = DataKeys::RecipientsStatus;
+        if let Some(recipients_status) = env.storage().instance().get::<DataKeys,  Map<String, (bool, Address)>>(&key) {
+            recipients_status
+        } else {
+            map![&env]
+        }
+    }
+
+    pub fn get_verified_recipients(env:Env) -> Vec<Address> {
+        let key = DataKeys::VerifiedRecipientList;
+        if let Some(recipients) = env.storage().instance().get::<DataKeys, Vec<Address>>(&key) {
+            recipients
+        } else {
+            vec![&env]
+        }
     }
 
     pub fn get_token_address(env:Env) -> Address {
