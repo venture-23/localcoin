@@ -125,7 +125,7 @@ impl Campaign {
 
         for username in usernames.iter() {
             if !(recipients_status.contains_key(username.clone())) {
-                panic!("Given list contains username thet has't joined campaign.")
+                panic!("Given list contains username that hasn't joined campaign.")
             }
             let (_, recipient) = recipients_status.get_unchecked(username.clone());            
             if verified_recipient_list.contains(recipient.clone()) {

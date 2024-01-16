@@ -227,7 +227,7 @@ fn test_join_campaign_twice() {
 }
 
 #[test]
-#[should_panic(expected = "Given list contains username thet has't joined campaign.")]
+#[should_panic(expected = "Given list contains username that hasn't joined campaign.")]
 fn test_verify_non_existing_recipient() {
     let env = Env::default();
     env.mock_all_auths();
