@@ -37,7 +37,7 @@ impl Campaign {
         env.storage().instance().set(&status_key, &status);
     }
 
-    pub fn set_campaign_info(env:Env, name:String, description:String, no_of_recipients:u32, token_address:Address,
+    pub fn set_campaign_info(env:Env, name:String, description:String, no_of_recipients:u32, amount:i128, token_address:Address,
          creator:Address, campaign_management:Address, location:String) {
 
             // set_campaign_info is only called by campaign_mamagenent contract
@@ -63,6 +63,7 @@ impl Campaign {
             campaign_info.set(String::from_str(&env, "name"), name.to_val());
             campaign_info.set(String::from_str(&env, "description"), description.to_val());
             campaign_info.set(String::from_str(&env, "no_of_recipients"), no_of_recipients.into());
+            campaign_info.set(String::from_str(&env, "amount"), amount.into_val(&env));
             campaign_info.set(String::from_str(&env, "token_address"), token_address.to_val());
             campaign_info.set(String::from_str(&env, "token_name"), token_name.to_val());
             campaign_info.set(String::from_str(&env, "creator"), creator.to_val());

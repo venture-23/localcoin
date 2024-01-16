@@ -5,12 +5,12 @@ use crate::{localcoin, Campaign, CampaignClient};
 
 use soroban_sdk::{testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation}, Symbol, Val, vec, Address, Env, IntoVal};
 
-fn deploy_campaign<'a>(env: &Env, name:String, description:String, no_of_recipients:u32, token_address:Address,
+fn deploy_campaign<'a>(env: &Env, name:String, description:String, no_of_recipients:u32, amount:i128, token_address:Address,
      creator:Address, campaign_management:Address, location:String) -> (Address, CampaignClient<'a>) {
         let contract_id = env.register_contract(None, Campaign);
         let client = CampaignClient::new(env, &contract_id);
         // set campaign info
-        client.set_campaign_info(&name, &description, &no_of_recipients, &token_address, &creator, &campaign_management, &location);
+        client.set_campaign_info(&name, &description, &no_of_recipients, &amount, &token_address, &creator, &campaign_management, &location);
         (contract_id, client)
 }
 
@@ -30,15 +30,17 @@ fn test_set_campaign_info() {
     let name = String::from_str(&env, "Test campaign ");
     let description = String::from_str(&env, "This is test camapaign");
     let no_of_recipients:u32 = 1;
+    let amount = 10;
     let location = String::from_str(&env, "Kathmandu");
 
     let (_, campaign) = deploy_campaign(&env, name.clone(), description.clone(), no_of_recipients.clone(),
-    localcoin_address.clone(), creator.clone(), campaign_management.clone(), location.clone());
+    amount, localcoin_address.clone(), creator.clone(), campaign_management.clone(), location.clone());
 
     let mut campaign_info: Map<String, Val> = Map::new(&env);
     campaign_info.set(String::from_str(&env, "name"), name.to_val());
     campaign_info.set(String::from_str(&env, "description"), description.to_val());
     campaign_info.set(String::from_str(&env, "no_of_recipients"), no_of_recipients.into());
+    campaign_info.set(String::from_str(&env, "amount"), amount.into_val(&env));
     campaign_info.set(String::from_str(&env, "token_address"), localcoin_address.to_val());
     campaign_info.set(String::from_str(&env, "token_name"), token_name.to_val());
     campaign_info.set(String::from_str(&env, "creator"), creator.to_val());
@@ -76,12 +78,13 @@ fn test_double_set_campaign_info() {
     let name = String::from_str(&env, "Test campaign ");
     let description = String::from_str(&env, "This is test camapaign");
     let no_of_recipients:u32 = 1;
+    let amount = 10;
     let location = String::from_str(&env, "Kathmandu");
 
     let (_, campaign) = deploy_campaign(&env, name.clone(), description.clone(), no_of_recipients.clone(),
-    localcoin_address.clone(), creator.clone(), campaign_management.clone(), location.clone());
+    amount, localcoin_address.clone(), creator.clone(), campaign_management.clone(), location.clone());
     
-    campaign.set_campaign_info(&name, &description, &no_of_recipients, &localcoin_address, &creator, &campaign_management.clone(), &location);
+    campaign.set_campaign_info(&name, &description, &no_of_recipients, &amount, &localcoin_address, &creator, &campaign_management.clone(), &location);
 }
 
 #[test]
@@ -106,7 +109,7 @@ fn test_transfer_token_to_recipient() {
     localcoin_client.initialize(&admin1, &7, &String::from_str(&env, "TEST"), &String::from_str(&env, "TST"));
 
     let (campaign_address, campaign) = deploy_campaign(&env, name.clone(), description.clone(), no_of_recipients.clone(),
-     localcoin_address.clone(), creator.clone(), campaign_management.clone(), location.clone());
+     amount, localcoin_address.clone(), creator.clone(), campaign_management.clone(), location.clone());
 
     localcoin_client.mint(&campaign_address, &100);
     assert_eq!(
@@ -202,6 +205,7 @@ fn test_join_campaign_twice() {
     let name = String::from_str(&env, "Test campaign ");
     let description = String::from_str(&env, "This is test camapaign");
     let no_of_recipients:u32 = 1;
+    let amount = 10;
     let location = String::from_str(&env, "Kathmandu");
 
     let localcoin_address = env.register_contract_wasm(None, localcoin::WASM);
@@ -209,7 +213,7 @@ fn test_join_campaign_twice() {
     localcoin_client.initialize(&admin1, &7, &String::from_str(&env, "TEST"), &String::from_str(&env, "TST"));
 
     let (_, campaign) = deploy_campaign(&env, name.clone(), description.clone(), no_of_recipients.clone(),
-     localcoin_address.clone(), creator.clone(), campaign_management.clone(), location.clone());
+     amount, localcoin_address.clone(), creator.clone(), campaign_management.clone(), location.clone());
 
     let mut recipient_status: Map<String, (bool, Address)> = Map::new(&env);
     recipient_status.set(String::from_str(&env, "Bob"), (false, recipient.clone()));
@@ -236,6 +240,7 @@ fn test_verify_non_existing_recipient() {
     let name = String::from_str(&env, "Test campaign ");
     let description = String::from_str(&env, "This is test camapaign");
     let no_of_recipients:u32 = 1;
+    let amount = 10;
     let location = String::from_str(&env, "Kathmandu");
 
     let localcoin_address = env.register_contract_wasm(None, localcoin::WASM);
@@ -243,7 +248,7 @@ fn test_verify_non_existing_recipient() {
     localcoin_client.initialize(&admin1, &7, &String::from_str(&env, "TEST"), &String::from_str(&env, "TST"));
 
     let (_, campaign) = deploy_campaign(&env, name.clone(), description.clone(), no_of_recipients.clone(),
-     localcoin_address.clone(), creator.clone(), campaign_management.clone(), location.clone());
+     amount, localcoin_address.clone(), creator.clone(), campaign_management.clone(), location.clone());
 
     let usernames = vec![&env, String::from_str(&env, "Bob")];
     // campaign owner(creator) verifies non existing recipient
@@ -265,6 +270,7 @@ fn test_verify_verified_recipient() {
     let name = String::from_str(&env, "Test campaign ");
     let description = String::from_str(&env, "This is test camapaign");
     let no_of_recipients:u32 = 1;
+    let amount = 10;
     let location = String::from_str(&env, "Kathmandu");
 
     let localcoin_address = env.register_contract_wasm(None, localcoin::WASM);
@@ -272,7 +278,7 @@ fn test_verify_verified_recipient() {
     localcoin_client.initialize(&admin1, &7, &String::from_str(&env, "TEST"), &String::from_str(&env, "TST"));
 
     let (_, campaign) = deploy_campaign(&env, name.clone(), description.clone(), no_of_recipients.clone(),
-     localcoin_address.clone(), creator.clone(), campaign_management.clone(), location.clone());
+     amount, localcoin_address.clone(), creator.clone(), campaign_management.clone(), location.clone());
 
     let mut recipient_status: Map<String, (bool, Address)> = Map::new(&env);
     recipient_status.set(String::from_str(&env, "Bob"), (false, recipient.clone()));
@@ -314,7 +320,7 @@ fn test_transfer_token_to_unverified_recipient() {
     localcoin_client.initialize(&admin1, &7, &String::from_str(&env, "TEST"), &String::from_str(&env, "TST"));
 
     let (_, campaign) = deploy_campaign(&env, name.clone(), description.clone(), no_of_recipients.clone(),
-     localcoin_address.clone(), creator.clone(), campaign_management.clone(), location.clone());
+     amount, localcoin_address.clone(), creator.clone(), campaign_management.clone(), location.clone());
 
     campaign.transfer_tokens_to_recipient(&recipient, &amount);
 }
@@ -345,7 +351,7 @@ fn test_transfer_token_to_recipient_from_non_campaign_creator() {
     localcoin_client.initialize(&admin1, &7, &String::from_str(&env, "TEST"), &String::from_str(&env, "TST"));
 
     let (campaign_address, campaign) = deploy_campaign(&env, name.clone(), description.clone(), no_of_recipients.clone(),
-     localcoin_address.clone(), creator.clone(), campaign_management.clone(), location.clone());
+     amount, localcoin_address.clone(), creator.clone(), campaign_management.clone(), location.clone());
 
     campaign.transfer_tokens_to_recipient(&recipient, &amount);
     assert_eq!(
