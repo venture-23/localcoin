@@ -4,7 +4,7 @@ use super::*;
 use crate::{registry, campaign_contract, localcoin, CampaignManagement, CampaignManagementClient};
 use crate::registry::Client;
 
-use soroban_sdk::{testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation}, Symbol, Address, Env, IntoVal};
+use soroban_sdk::{testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation}, Symbol, Address, Env, Val, IntoVal};
 
 mod issuance_management {
     soroban_sdk::contractimport!(
@@ -217,6 +217,7 @@ fn test_valid_create_campaign_flow() {
     campaign_info.set(String::from_str(&env, "name"), name.to_val());
     campaign_info.set(String::from_str(&env, "description"), description.to_val());
     campaign_info.set(String::from_str(&env, "no_of_recipients"), no_of_recipients.into());
+    campaign_info.set(String::from_str(&env, "amount"), amount.into_val(&env));
     campaign_info.set(String::from_str(&env, "token_address"), token_address.to_val());
     campaign_info.set(String::from_str(&env, "token_name"), String::from_str(&env, "Token1").to_val());
     campaign_info.set(String::from_str(&env, "creator"), creator.to_val());
@@ -247,6 +248,11 @@ fn test_valid_create_campaign_flow() {
         camapign_client.transfer_tokens_to_recipient(&recipient, &half_amount);
 
         assert_eq!(camapign_client.get_campaign_balance(), half_amount);
+
+        // verify creators campaign
+        let mut creator_campaigns: Map<Address, String> = Map::new(&env);
+        creator_campaigns.set(campaign.clone(), name.clone());
+        assert_eq!(campaign_management.get_creator_campaigns(&creator), creator_campaigns);
 
         // campaign creator ends the campaign
         campaign_management.end_campaign(&campaign, &creator);

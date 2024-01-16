@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, token, Address, BytesN, Env, String, Vec, Map, Val, vec};
+use soroban_sdk::{contract, contractimpl, contracttype, token, Address, BytesN, Env, String, Vec, Map, vec};
 mod test;
 
 mod campaign_contract {
@@ -21,15 +21,6 @@ mod registry {
         file =
             "../registry/target/wasm32-unknown-unknown/release/registry.wasm"
     );
-}
-
-#[derive(Clone)]
-#[contracttype]
-pub struct CampaignDetail {
-    pub campaign: Address,
-    pub token: Address,
-    pub token_minted: i128,
-    pub info: Map<String, Val>
 }
 
 #[derive(Clone)]
@@ -124,7 +115,7 @@ impl CampaignManagement {
 
             // call set_campaign_info on camapign contract through client
             let campaign_client = campaign_contract::Client::new(&env, &campaign_contract_addr);
-            campaign_client.set_campaign_info(&name, &description, &no_of_recipients, &token_address, 
+            campaign_client.set_campaign_info(&name, &description, &no_of_recipients, &amount, &token_address, 
                 &creator, &env.current_contract_address(), &location); 
 
             // mint stable coin equivalent tokens to campaign contract
@@ -149,23 +140,10 @@ impl CampaignManagement {
             // store campaigns info of the creator
             let key = DataKeys:: CreatorCampaigns(creator.clone());
             let mut creator_campaigns = Self::get_creator_campaigns(env.clone(), creator.clone());
-
-            let mut new_campaign_info: Map<String, Val> = Map::new(&env);
-            new_campaign_info.set(String::from_str(&env, "name"), name.to_val());
-            new_campaign_info.set(String::from_str(&env, "description"), description.to_val());
-            new_campaign_info.set(String::from_str(&env, "no_of_recipients"), no_of_recipients.into());
-            new_campaign_info.set(String::from_str(&env, "location"), location.to_val());
-
-            let campaign_value = CampaignDetail {
-                campaign: campaign_contract_addr,
-                token: token_address,
-                token_minted: amount,
-                info: new_campaign_info
-            };
-            creator_campaigns.push_back(campaign_value.clone());
+            creator_campaigns.set(campaign_contract_addr.clone(), name.clone());
             env.storage().instance().set(&key, &creator_campaigns);
             // emit event
-            env.events().publish((creator, campaign_value), "Campaign created.");
+            env.events().publish((campaign_contract_addr, (name, description, no_of_recipients, amount, creator)), "Campaign created.");
     }
 
     pub fn request_campaign_settlement(env:Env, from:Address, amount:i128, token_address:Address) {
@@ -272,12 +250,12 @@ impl CampaignManagement {
         }
     }
 
-    pub fn get_creator_campaigns(env:Env, creator:Address) -> Vec<CampaignDetail> {
+    pub fn get_creator_campaigns(env:Env, creator:Address) ->  Map<Address, String> {
         let key = DataKeys:: CreatorCampaigns(creator);
-        if let Some(campaigns_info) = env.storage().instance().get::<DataKeys, Vec<CampaignDetail>>(&key) {
-            campaigns_info
+        if let Some(campaigns) = env.storage().instance().get::<DataKeys,  Map<Address, String>>(&key) {
+            campaigns
         } else {
-            vec![&env] 
+            Map::new(&env) 
         }
     }
 
